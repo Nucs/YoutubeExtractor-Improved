@@ -115,9 +115,7 @@ namespace YoutubeExtractor {
         /// <value>
         ///     <c>true</c> if the audio of this video can be extracted by YoutubeExtractor; otherwise, <c>false</c>.
         /// </value>
-        public bool CanExtractAudio {
-            get { return VideoType == VideoType.Flash; }
-        }
+        public bool CanExtractAudio => VideoType == VideoType.Flash || VideoType==VideoType.Mp4;
 
         /// <summary>
         ///     Gets the download URL.

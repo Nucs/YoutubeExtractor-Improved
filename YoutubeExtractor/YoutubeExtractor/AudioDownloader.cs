@@ -22,6 +22,10 @@
 using System;
 using System.IO;
 using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
+using MediaToolkit;
+using MediaToolkit.Model;
 
 namespace YoutubeExtractor {
     /// <summary>
@@ -87,13 +91,37 @@ namespace YoutubeExtractor {
         }
 
         private void ExtractAudio(string path) {
-            using (var flvFile = new FlvFile(path, SavePath)) {
-                flvFile.ConversionProgressChanged += (sender, args) => {
-                    if (AudioExtractionProgressChanged != null)
-                        AudioExtractionProgressChanged(this, new ProgressEventArgs(args.ProgressPercentage));
-                };
+            switch (this.Video.VideoType) {
+                case VideoType.Mobile:
+                    break;
+                case VideoType.Flash:
+                    using (var flvFile = new FlvFile(path, SavePath)) {
+                        flvFile.ConversionProgressChanged += (sender, args) => {
+                            AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs(args.ProgressPercentage));
+                        };
 
-                flvFile.ExtractStreams();
+                        flvFile.ExtractStreams();
+                    }
+                    break;
+                case VideoType.Mp4:
+                    var @in = new MediaFile(path);
+                    var @out = new MediaFile(SavePath);
+                    using (var engine = new Engine()) {
+                        //Desperate attempt to catch the extraction from the MediaToolkit lib but it simply does not pass into those events.
+                        //engine.ConvertProgressEvent += (sender, args) => AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs((args.ProcessedDuration.TotalMilliseconds / args.TotalDuration.TotalMilliseconds) * 100f));
+                        //engine.ConversionCompleteEvent += (sender, args) => AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs((args.ProcessedDuration.TotalMilliseconds / args.TotalDuration.TotalMilliseconds) * 100f));
+                        //informing on 0% and 100%, btw those conversions are pretty fast, 5 to 10 seconds for a 50MB 1048p video.
+                        AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs(0F));
+                        engine.Convert(@in, @out); //begin conversion progress. it is executed serially.
+                        AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs(100f)); //invoke completed
+                    }
+                    break;
+                case VideoType.WebM:
+                    break;
+                case VideoType.Unknown:
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
             }
         }
     }
