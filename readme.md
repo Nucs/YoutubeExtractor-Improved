@@ -1,4 +1,16 @@
-# YoutubeExtractor
+# YoutubeExtractor - MP4 Audio Extraction Support
+This fork adds support for converting MP4 to AAC file 
+using `MediaToolkit C# Library` - a wrapper for `ffmpeg C91 Library`.
+
+The AAC audio file extraction from a MP4 file is done the same way as before (using `AudioDownloader`).
+
+#### Notice:
+- `.NET Framework` has been upgraded to 4.0.
+- `Newtonsoft.JSON` has been upgraded to 7.0.1.
+#### Target platforms
+    Confirmed to work on a desktop application under Win7.
+
+# Original Readme
 
 <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=daume%2edennis%40gmail%2ecom&lc=US&item_name=YoutubeExtractor&no_note=0&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_LG%2egif%3aNonHostedGuest">
   <img src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif" title="Donate via Paypal" />
