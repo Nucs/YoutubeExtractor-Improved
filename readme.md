@@ -7,6 +7,7 @@ The AAC audio file extraction from a MP4 file is done the same way as before (us
 #### Notice:
 - `.NET Framework` has been upgraded to 4.0.
 - `Newtonsoft.JSON` has been upgraded to 7.0.1.
+
 #### Target platforms
     Confirmed to work on a desktop application under Win7.
 
