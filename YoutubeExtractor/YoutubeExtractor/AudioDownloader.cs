@@ -23,87 +23,74 @@ using System;
 using System.IO;
 using System.Net;
 
-namespace YoutubeExtractor
-{
+namespace YoutubeExtractor {
     /// <summary>
-    /// Provides a method to download a video and extract its audio track.
+    ///     Provides a method to download a video and extract its audio track.
     /// </summary>
-    public class AudioDownloader : Downloader
-    {
+    public class AudioDownloader : Downloader {
         private bool isCanceled;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="AudioDownloader"/> class.
+        ///     Initializes a new instance of the <see cref="AudioDownloader" /> class.
         /// </summary>
         /// <param name="video">The video to convert.</param>
         /// <param name="savePath">The path to save the audio.</param>
-        /// /// <param name="bytesToDownload">An optional value to limit the number of bytes to download.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="video"/> or <paramref name="savePath"/> is <c>null</c>.</exception>
+        /// ///
+        /// <param name="bytesToDownload">An optional value to limit the number of bytes to download.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="video" /> or <paramref name="savePath" /> is <c>null</c>.</exception>
         public AudioDownloader(VideoInfo video, string savePath, int? bytesToDownload = null)
-            : base(video, savePath, bytesToDownload)
-        { }
+            : base(video, savePath, bytesToDownload) {}
 
         /// <summary>
-        /// Occurs when the progress of the audio extraction has changed.
+        ///     Occurs when the progress of the audio extraction has changed.
         /// </summary>
         public event EventHandler<ProgressEventArgs> AudioExtractionProgressChanged;
 
         /// <summary>
-        /// Occurs when the download progress of the video file has changed.
+        ///     Occurs when the download progress of the video file has changed.
         /// </summary>
         public event EventHandler<ProgressEventArgs> DownloadProgressChanged;
 
         /// <summary>
-        /// Downloads the video from YouTube and then extracts the audio track out if it.
+        ///     Downloads the video from YouTube and then extracts the audio track out if it.
         /// </summary>
         /// <exception cref="IOException">
-        /// The temporary video file could not be created.
-        /// - or -
-        /// The audio file could not be created.
+        ///     The temporary video file could not be created.
+        ///     - or -
+        ///     The audio file could not be created.
         /// </exception>
         /// <exception cref="AudioExtractionException">An error occured during audio extraction.</exception>
         /// <exception cref="WebException">An error occured while downloading the video.</exception>
-        public override void Execute()
-        {
-            string tempPath = Path.GetTempFileName();
+        public override void Execute() {
+            var tempPath = Path.GetTempFileName();
 
-            this.DownloadVideo(tempPath);
+            DownloadVideo(tempPath);
 
-            if (!this.isCanceled)
-            {
-                this.ExtractAudio(tempPath);
-            }
+            if (!isCanceled)
+                ExtractAudio(tempPath);
 
-            this.OnDownloadFinished(EventArgs.Empty);
+            OnDownloadFinished(EventArgs.Empty);
         }
 
-        private void DownloadVideo(string path)
-        {
-            var videoDownloader = new VideoDownloader(this.Video, path, this.BytesToDownload);
+        private void DownloadVideo(string path) {
+            var videoDownloader = new VideoDownloader(Video, path, BytesToDownload);
 
-            videoDownloader.DownloadProgressChanged += (sender, args) =>
-            {
-                if (this.DownloadProgressChanged != null)
-                {
-                    this.DownloadProgressChanged(this, args);
+            videoDownloader.DownloadProgressChanged += (sender, args) => {
+                if (DownloadProgressChanged != null) {
+                    DownloadProgressChanged(this, args);
 
-                    this.isCanceled = args.Cancel;
+                    isCanceled = args.Cancel;
                 }
             };
 
             videoDownloader.Execute();
         }
 
-        private void ExtractAudio(string path)
-        {
-            using (var flvFile = new FlvFile(path, this.SavePath))
-            {
-                flvFile.ConversionProgressChanged += (sender, args) =>
-                {
-                    if (this.AudioExtractionProgressChanged != null)
-                    {
-                        this.AudioExtractionProgressChanged(this, new ProgressEventArgs(args.ProgressPercentage));
-                    }
+        private void ExtractAudio(string path) {
+            using (var flvFile = new FlvFile(path, SavePath)) {
+                flvFile.ConversionProgressChanged += (sender, args) => {
+                    if (AudioExtractionProgressChanged != null)
+                        AudioExtractionProgressChanged(this, new ProgressEventArgs(args.ProgressPercentage));
                 };
 
                 flvFile.ExtractStreams();

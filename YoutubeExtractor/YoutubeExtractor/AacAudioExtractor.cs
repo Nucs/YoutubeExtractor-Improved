@@ -21,44 +21,34 @@
 
 using System.IO;
 
-namespace YoutubeExtractor
-{
-    internal class AacAudioExtractor : IAudioExtractor
-    {
+namespace YoutubeExtractor {
+    internal class AacAudioExtractor : IAudioExtractor {
         private readonly FileStream fileStream;
         private int aacProfile;
         private int channelConfig;
         private int sampleRateIndex;
 
-        public AacAudioExtractor(string path)
-        {
-            this.VideoPath = path;
+        public AacAudioExtractor(string path) {
+            VideoPath = path;
             fileStream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read, 64 * 1024);
         }
 
-        public string VideoPath { get; private set; }
+        public string VideoPath { get; }
 
-        public void Dispose()
-        {
-            this.fileStream.Dispose();
+        public void Dispose() {
+            fileStream.Dispose();
         }
 
-        public void WriteChunk(byte[] chunk, uint timeStamp)
-        {
+        public void WriteChunk(byte[] chunk, uint timeStamp) {
             if (chunk.Length < 1)
-            {
                 return;
-            }
 
-            if (chunk[0] == 0)
-            {
+            if (chunk[0] == 0) {
                 // Header
                 if (chunk.Length < 3)
-                {
                     return;
-                }
 
-                ulong bits = (ulong)BigEndianBitConverter.ToUInt16(chunk, 1) << 48;
+                var bits = (ulong) BigEndianBitConverter.ToUInt16(chunk, 1) << 48;
 
                 aacProfile = BitHelper.Read(ref bits, 5) - 1;
                 sampleRateIndex = BitHelper.Read(ref bits, 4);
@@ -70,12 +60,9 @@ namespace YoutubeExtractor
                     throw new AudioExtractionException("Invalid AAC sample rate index.");
                 if (channelConfig > 6)
                     throw new AudioExtractionException("Invalid AAC channel configuration.");
-            }
-
-            else
-            {
+            } else {
                 // Audio data
-                int dataSize = chunk.Length - 1;
+                var dataSize = chunk.Length - 1;
                 ulong bits = 0;
 
                 // Reference: WriteADTSHeader from FAAC's bitstream.c
