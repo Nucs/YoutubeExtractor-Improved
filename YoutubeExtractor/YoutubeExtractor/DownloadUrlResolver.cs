@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 
 namespace YoutubeExtractor {
@@ -13,6 +15,7 @@ namespace YoutubeExtractor {
         private const string RateBypassFlag = "ratebypass";
         private const int CorrectSignatureLength = 81;
         private const string SignatureQuery = "signature";
+        private static readonly HttpClient _httpClient = new HttpClient();
 
         /// <summary>
         ///     Decrypts the signature in the <see cref="VideoInfo.DownloadUrl" /> property and sets it
@@ -43,6 +46,7 @@ namespace YoutubeExtractor {
                 videoInfo.RequiresDecryption = false;
             }
         }
+
 
         /// <summary>
         ///     Gets a list of <see cref="VideoInfo" />s for the specified URL.
@@ -86,6 +90,65 @@ namespace YoutubeExtractor {
 
                 IEnumerable<VideoInfo> infos = GetVideoInfos(downloadUrls, videoTitle).ToList();
 
+                var htmlPlayerVersion = GetHtml5PlayerVersion(json);
+
+                foreach (var info in infos) {
+                    info.HtmlPlayerVersion = htmlPlayerVersion;
+
+                    if (decryptSignature && info.RequiresDecryption)
+                        DecryptDownloadUrl(info);
+                }
+
+                return infos;
+            } catch (Exception ex) {
+                if (ex is WebException || ex is VideoNotAvailableException)
+                    throw;
+
+                ThrowYoutubeParseException(ex, videoUrl);
+            }
+
+            return null; // Will never happen, but the compiler requires it
+        }
+
+        /// <summary>
+        ///     Gets a list of <see cref="VideoInfo" />s for the specified URL.
+        /// </summary>
+        /// <param name="videoUrl">The URL of the YouTube video.</param>
+        /// <param name="decryptSignature">
+        ///     A value indicating whether the video signatures should be decrypted or not. Decrypting
+        ///     consists of a HTTP request for each <see cref="VideoInfo" />, so you may want to set
+        ///     this to false and call <see cref="DecryptDownloadUrl" /> on your selected
+        ///     <see
+        ///         cref="VideoInfo" />
+        ///     later.
+        /// </param>
+        /// <returns>A list of <see cref="VideoInfo" />s that can be used to download the video.</returns>
+        /// <exception cref="ArgumentNullException">
+        ///     The <paramref name="videoUrl" /> parameter is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ArgumentException">
+        ///     The <paramref name="videoUrl" /> parameter is not a valid YouTube URL.
+        /// </exception>
+        /// <exception cref="VideoNotAvailableException">The video is not available.</exception>
+        /// <exception cref="WebException">
+        ///     An error occurred while downloading the YouTube page html.
+        /// </exception>
+        /// <exception cref="YoutubeParseException">The Youtube page could not be parsed.</exception>
+        public static async Task<IEnumerable<VideoInfo>> GetDownloadUrlsAsync(string videoUrl, bool decryptSignature = true) {
+            if (videoUrl == null)
+                throw new ArgumentNullException(nameof(videoUrl));
+
+            var isYoutubeUrl = TryNormalizeYoutubeUrl(videoUrl, out videoUrl);
+
+            if (!isYoutubeUrl)
+                throw new ArgumentException("URL is not a valid youtube URL!");
+
+            try {
+                var json = await LoadJsonAsync(videoUrl);
+                var videoTitle = GetVideoTitle(json);
+
+                var downloadUrls = ExtractDownloadUrls(json);
+                var infos = GetVideoInfos(downloadUrls, videoTitle);
                 var htmlPlayerVersion = GetHtml5PlayerVersion(json);
 
                 foreach (var info in infos) {
@@ -153,7 +216,8 @@ namespace YoutubeExtractor {
         private static IEnumerable<ExtractionInfo> ExtractDownloadUrls(JObject json) {
             var splitByUrls = GetStreamMap(json).Split(',');
             var adaptiveFmtSplitByUrls = GetAdaptiveStreamMap(json).Split(',');
-            splitByUrls = splitByUrls.Concat(adaptiveFmtSplitByUrls).ToArray();
+            if (!string.IsNullOrWhiteSpace(adaptiveFmtSplitByUrls[0]))
+                splitByUrls = splitByUrls.Concat(adaptiveFmtSplitByUrls).Distinct().ToArray();
 
             foreach (var s in splitByUrls) {
                 var queries = HttpHelper.ParseQueryString(s);
@@ -165,7 +229,7 @@ namespace YoutubeExtractor {
                     requiresDecryption = queries.ContainsKey("s");
                     var signature = queries.ContainsKey("s") ? queries["s"] : queries["sig"];
 
-                    url = string.Format("{0}&{1}={2}", queries["url"], SignatureQuery, signature);
+                    url = $"{queries["url"]}&{SignatureQuery}={signature}";
 
                     var fallbackHost = queries.ContainsKey("fallback_host") ? "&fallback_host=" + queries["fallback_host"] : string.Empty;
 
@@ -178,21 +242,28 @@ namespace YoutubeExtractor {
 
                 var parameters = HttpHelper.ParseQueryString(url);
                 if (!parameters.ContainsKey(RateBypassFlag))
-                    url += string.Format("&{0}={1}", RateBypassFlag, "yes");
+                    url += $"&{RateBypassFlag}={"yes"}";
 
                 yield return new ExtractionInfo {RequiresDecryption = requiresDecryption, Uri = new Uri(url)};
             }
         }
 
         private static string GetAdaptiveStreamMap(JObject json) {
-            var streamMap = json["args"]["adaptive_fmts"];
-
-            return streamMap.ToString();
+            JToken streamMap;
+            try {
+                streamMap = json["args"]["adaptive_fmts"];
+                return streamMap.ToString();
+            } catch {
+                streamMap = json["args"]["url_encoded_fmt_stream_map"];
+                return streamMap.ToString();
+            }
         }
 
         private static string GetDecipheredSignature(string htmlPlayerVersion, string signature) {
-            if (signature.Length == CorrectSignatureLength)
+            /*if (signature.Length == CorrectSignatureLength)
+            {
                 return signature;
+            }*/
 
             return Decipherer.DecipherWithVersion(signature, htmlPlayerVersion);
         }
@@ -208,7 +279,7 @@ namespace YoutubeExtractor {
         private static string GetStreamMap(JObject json) {
             var streamMap = json["args"]["url_encoded_fmt_stream_map"];
 
-            var streamMapString = streamMap == null ? null : streamMap.ToString();
+            var streamMapString = streamMap?.ToString();
 
             if (streamMapString == null || streamMapString.Contains("been+removed"))
                 throw new VideoNotAvailableException("Video is removed or has an age restriction.");
@@ -247,7 +318,7 @@ namespace YoutubeExtractor {
         private static string GetVideoTitle(JObject json) {
             var title = json["args"]["title"];
 
-            return title == null ? string.Empty : title.ToString();
+            return title?.ToString() ?? string.Empty;
         }
 
         private static bool IsVideoUnavailable(string pageSource) {
@@ -258,6 +329,19 @@ namespace YoutubeExtractor {
 
         private static JObject LoadJson(string url) {
             var pageSource = HttpHelper.DownloadString(url);
+
+            if (IsVideoUnavailable(pageSource))
+                throw new VideoNotAvailableException();
+
+            var dataRegex = new Regex(@"ytplayer\.config\s*=\s*(\{.+?\});", RegexOptions.Multiline);
+
+            var extractedJson = dataRegex.Match(pageSource).Result("$1");
+
+            return JObject.Parse(extractedJson);
+        }
+
+        private static async Task<JObject> LoadJsonAsync(string url) {
+            var pageSource = await _httpClient.GetStringAsync(url);
 
             if (IsVideoUnavailable(pageSource))
                 throw new VideoNotAvailableException();

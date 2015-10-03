@@ -22,7 +22,6 @@
 using System;
 using System.IO;
 using System.Net;
-using System.Threading;
 using System.Threading.Tasks;
 using MediaToolkit;
 using MediaToolkit.Model;
@@ -91,14 +90,12 @@ namespace YoutubeExtractor {
         }
 
         private void ExtractAudio(string path) {
-            switch (this.Video.VideoType) {
+            switch (Video.VideoType) {
                 case VideoType.Mobile:
                     break;
                 case VideoType.Flash:
                     using (var flvFile = new FlvFile(path, SavePath)) {
-                        flvFile.ConversionProgressChanged += (sender, args) => {
-                            AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs(args.ProgressPercentage));
-                        };
+                        flvFile.ConversionProgressChanged += (sender, args) => { AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs(args.ProgressPercentage)); };
 
                         flvFile.ExtractStreams();
                     }
@@ -123,6 +120,31 @@ namespace YoutubeExtractor {
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+        }
+
+        public async Task ExecuteAsync() {
+            var tempPath = Path.GetTempFileName();
+
+            await DownloadVideoAsync(tempPath);
+
+            if (!isCanceled)
+                ExtractAudio(tempPath);
+
+            OnDownloadFinished(EventArgs.Empty);
+        }
+
+        private Task DownloadVideoAsync(string path) {
+            var videoDownloader = new VideoDownloader(Video, path, BytesToDownload);
+
+            videoDownloader.DownloadProgressChanged += (sender, args) => {
+                if (DownloadProgressChanged != null) {
+                    DownloadProgressChanged(this, args);
+
+                    isCanceled = args.Cancel;
+                }
+            };
+
+            return videoDownloader.ExecuteAsync();
         }
     }
 }

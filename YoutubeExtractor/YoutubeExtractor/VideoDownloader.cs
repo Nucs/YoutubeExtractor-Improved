@@ -1,12 +1,16 @@
 ﻿using System;
 using System.IO;
 using System.Net;
+using System.Net.Http;
+using System.Threading.Tasks;
 
 namespace YoutubeExtractor {
     /// <summary>
     ///     Provides a method to download a video from YouTube.
     /// </summary>
     public class VideoDownloader : Downloader {
+        private readonly HttpClient _httpClient;
+
         /// <summary>
         ///     Initializes a new instance of the <see cref="VideoDownloader" /> class.
         /// </summary>
@@ -15,7 +19,9 @@ namespace YoutubeExtractor {
         /// <param name="bytesToDownload">An optional value to limit the number of bytes to download.</param>
         /// <exception cref="ArgumentNullException"><paramref name="video" /> or <paramref name="savePath" /> is <c>null</c>.</exception>
         public VideoDownloader(VideoInfo video, string savePath, int? bytesToDownload = null)
-            : base(video, savePath, bytesToDownload) {}
+            : base(video, savePath, bytesToDownload) {
+            _httpClient = new HttpClient();
+        }
 
         /// <summary>
         ///     Occurs when the downlaod progress of the video file has changed.
@@ -61,6 +67,34 @@ namespace YoutubeExtractor {
             }
 
             OnDownloadFinished(EventArgs.Empty);
+        }
+
+        public async Task ExecuteAsync() {
+            OnDownloadStarted(EventArgs.Empty);
+
+            var response = await _httpClient.GetAsync(Video.DownloadUrl);
+            if (!response.IsSuccessStatusCode)
+                throw new Exception();
+
+            using (var downloadStream = await response.Content.ReadAsStreamAsync())
+            using (var fileStream = File.Open(SavePath, FileMode.Create, FileAccess.Write)) {
+                var buffer = new byte[0x4000]; //16KB buffer
+                var cancelRequest = false;
+
+                int bytes;
+                double bytesDownloaded = 0;
+
+                while (!cancelRequest && (bytes = await downloadStream.ReadAsync(buffer, 0, buffer.Length)) > 0) {
+                    await fileStream.WriteAsync(buffer, 0, bytes);
+                    bytesDownloaded += bytes;
+
+                    var eventArgs = new ProgressEventArgs((bytesDownloaded / downloadStream.Length) * 100);
+
+                    DownloadProgressChanged?.Invoke(this, eventArgs);
+                    if (eventArgs.Cancel)
+                        cancelRequest = true;
+                }
+            }
         }
     }
 }

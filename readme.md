@@ -5,7 +5,7 @@ using `MediaToolkit C# Library` - a wrapper for `ffmpeg C91 Library`.
 The AAC audio file extraction from a MP4 file is done the same way as before (using `AudioDownloader`).
 
 #### Notice:
-- `.NET Framework` has been upgraded to 4.0.
+- `.NET Framework` has been upgraded to 4.6.
 - `Newtonsoft.JSON` has been upgraded to 7.0.1.
 
 #### Target platforms
