@@ -15,10 +15,10 @@ namespace YoutubeExtractor {
         /// <exception cref="ArgumentNullException"><paramref name="video" /> or <paramref name="savePath" /> is <c>null</c>.</exception>
         protected Downloader(VideoInfo video, string savePath, int? bytesToDownload = null) {
             if (video == null)
-                throw new ArgumentNullException("video");
+                throw new ArgumentNullException(nameof(video));
 
             if (savePath == null)
-                throw new ArgumentNullException("savePath");
+                throw new ArgumentNullException(nameof(savePath));
 
             Video = video;
             SavePath = savePath;
@@ -33,7 +33,7 @@ namespace YoutubeExtractor {
         /// <summary>
         ///     Gets the path to save the video/audio.
         /// </summary>
-        public string SavePath { get; private set; }
+        public string SavePath { get; protected set; }
 
         /// <summary>
         ///     Gets the video to download/convert.
@@ -50,19 +50,23 @@ namespace YoutubeExtractor {
         /// </summary>
         public event EventHandler DownloadStarted;
 
+        public event EventHandler<RetryableProcessFailed> DownloadFailed;
+
         /// <summary>
         ///     Starts the work of the <see cref="Downloader" />.
         /// </summary>
         public abstract void Execute();
 
         protected void OnDownloadFinished(EventArgs e) {
-            if (DownloadFinished != null)
-                DownloadFinished(this, e);
+            DownloadFinished?.Invoke(this, e);
         }
 
         protected void OnDownloadStarted(EventArgs e) {
-            if (DownloadStarted != null)
-                DownloadStarted(this, e);
+            DownloadStarted?.Invoke(this, e);
+        }
+
+        protected void OnDownloadFailed(RetryableProcessFailed e) {
+            DownloadFailed?.Invoke(this, e);
         }
     }
 }

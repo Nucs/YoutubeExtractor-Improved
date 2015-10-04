@@ -62,7 +62,11 @@
     <Compile Include="BitHelper.cs" />
     <Compile Include="Decipherer.cs" />
     <Compile Include="Downloader.cs" />
+    <Compile Include="DownloadFailDetails.cs" />
     <Compile Include="DownloadUrlResolver.cs" />
+    <Compile Include="FastWebClient.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="FlvFile.cs" />
     <Compile Include="HttpHelper.cs" />
     <Compile Include="IAudioExtractor.cs" />
@@ -76,6 +80,7 @@
     <Compile Include="YoutubeParseException.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="App.config" />
     <None Include="packages.YoutubeExtractor.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -149,6 +149,11 @@ namespace YoutubeExtractor {
         public string Title { get; internal set; }
 
         /// <summary>
+        ///     The url it has been extracted from.
+        /// </summary>
+        public string YoutubeUrl { get; set; }
+
+        /// <summary>
         ///     Gets the video extension.
         /// </summary>
         /// <value>The video extension, or <c>null</c> if the video extension is unknown.</value>

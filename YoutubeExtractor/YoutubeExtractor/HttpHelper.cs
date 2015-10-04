@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using System.Web;
 
 namespace YoutubeExtractor {
@@ -20,11 +21,18 @@ namespace YoutubeExtractor {
 
             return task.ContinueWith(t => ReadStreamFromResponse(t.Result)).Result;
 #else
-            using (var client = new WebClient()) {
+            using (var client = new FastWebClient() {Timeout = 1500}) {
                 client.Encoding = Encoding.UTF8;
                 return client.DownloadString(url);
             }
 #endif
+        }
+
+         public static async Task<string> DownloadStringAsync(string url) {
+            using (var client = new FastWebClient()  {Timeout = 1500}) {
+                client.Encoding = Encoding.UTF8;
+                return await client.DownloadStringTaskAsync(new Uri(url));
+            }
         }
 
         public static string HtmlDecode(string value) {

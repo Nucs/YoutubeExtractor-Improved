@@ -68,28 +68,34 @@ namespace YoutubeExtractor {
             var tempPath = Path.GetTempFileName();
 
             DownloadVideo(tempPath);
+            OnDownloadFinished(EventArgs.Empty);
 
             if (!isCanceled)
-                ExtractAudio(tempPath);
+                ExtractAudio(tempPath).Wait();
 
-            OnDownloadFinished(EventArgs.Empty);
         }
 
         private void DownloadVideo(string path) {
-            var videoDownloader = new VideoDownloader(Video, path, BytesToDownload);
+            var vd = new VideoDownloader(Video, path, BytesToDownload);
 
-            videoDownloader.DownloadProgressChanged += (sender, args) => {
+            vd.DownloadProgressChanged += (sender, args) => {
                 if (DownloadProgressChanged != null) {
                     DownloadProgressChanged(this, args);
 
                     isCanceled = args.Cancel;
                 }
             };
-
-            videoDownloader.Execute();
+            vd.DownloadFailed += (sender, failed) => this.OnDownloadFailed(failed);
+            vd.Execute();
         }
 
-        private void ExtractAudio(string path) {
+        private async Task ExtractAudio(string path) {
+            var cache = new FileInfo(SavePath);
+            SavePath = cache.FullName;//to universal string
+            for (int i = 1; File.Exists(SavePath); i++) {
+                SavePath = Path.Combine(cache.Directory.FullName, $"{cache.Name.Replace(cache.Extension,"")} ({i}){cache.Extension}");
+            }
+                
             switch (Video.VideoType) {
                 case VideoType.Mobile:
                     break;
@@ -97,7 +103,7 @@ namespace YoutubeExtractor {
                     using (var flvFile = new FlvFile(path, SavePath)) {
                         flvFile.ConversionProgressChanged += (sender, args) => { AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs(args.ProgressPercentage)); };
 
-                        flvFile.ExtractStreams();
+                        await Task.Run(()=>flvFile.ExtractStreams());
                     }
                     break;
                 case VideoType.Mp4:
@@ -109,7 +115,7 @@ namespace YoutubeExtractor {
                         //engine.ConversionCompleteEvent += (sender, args) => AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs((args.ProcessedDuration.TotalMilliseconds / args.TotalDuration.TotalMilliseconds) * 100f));
                         //informing on 0% and 100%, btw those conversions are pretty fast, 5 to 10 seconds for a 50MB 1048p video.
                         AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs(0F));
-                        engine.Convert(@in, @out); //begin conversion progress. it is executed serially.
+                        await Task.Run(()=>engine.Convert(@in, @out)); //begin conversion progress. it is executed serially.
                         AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs(100f)); //invoke completed
                     }
                     break;
@@ -122,29 +128,39 @@ namespace YoutubeExtractor {
             }
         }
 
+        /// <summary>
+        ///     Downloads the video from YouTube and then extracts the audio track out if it.
+        /// </summary>
+        /// <exception cref="IOException">
+        ///     The temporary video file could not be created.
+        ///     - or -
+        ///     The audio file could not be created.
+        /// </exception>
+        /// <exception cref="AudioExtractionException">An error occured during audio extraction.</exception>
+        /// <exception cref="WebException">An error occured while downloading the video.</exception>
         public async Task ExecuteAsync() {
             var tempPath = Path.GetTempFileName();
 
             await DownloadVideoAsync(tempPath);
-
+            
             if (!isCanceled)
-                ExtractAudio(tempPath);
-
+                await ExtractAudio(tempPath);
+            
             OnDownloadFinished(EventArgs.Empty);
         }
 
-        private Task DownloadVideoAsync(string path) {
-            var videoDownloader = new VideoDownloader(Video, path, BytesToDownload);
+        private async Task DownloadVideoAsync(string path) {
+            var vd = new VideoDownloader(Video, path, BytesToDownload);
 
-            videoDownloader.DownloadProgressChanged += (sender, args) => {
+            vd.DownloadProgressChanged += (sender, args) => {
                 if (DownloadProgressChanged != null) {
                     DownloadProgressChanged(this, args);
 
                     isCanceled = args.Cancel;
                 }
             };
-
-            return videoDownloader.ExecuteAsync();
+            vd.DownloadFailed += (sender, failed) => this.OnDownloadFailed(failed);
+            await vd.ExecuteAsync();
         }
     }
 }

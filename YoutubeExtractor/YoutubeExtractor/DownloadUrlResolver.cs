@@ -15,7 +15,9 @@ namespace YoutubeExtractor {
         private const string RateBypassFlag = "ratebypass";
         private const int CorrectSignatureLength = 81;
         private const string SignatureQuery = "signature";
-        private static readonly HttpClient _httpClient = new HttpClient();
+        private static readonly FastWebClient _httpClient = new FastWebClient();
+
+        public static event Action<RetryableProcessFailed> FailedDownload;
 
         /// <summary>
         ///     Decrypts the signature in the <see cref="VideoInfo.DownloadUrl" /> property and sets it
@@ -37,7 +39,7 @@ namespace YoutubeExtractor {
                 string decrypted;
 
                 try {
-                    decrypted = GetDecipheredSignature(videoInfo.HtmlPlayerVersion, encryptedSignature);
+                    decrypted = GetDecipheredSignature(videoInfo, videoInfo.HtmlPlayerVersion, encryptedSignature);
                 } catch (Exception ex) {
                     throw new YoutubeParseException("Could not decipher signature", ex);
                 }
@@ -46,6 +48,38 @@ namespace YoutubeExtractor {
                 videoInfo.RequiresDecryption = false;
             }
         }
+
+        
+        /// <summary>
+        ///     Decrypts the signature in the <see cref="VideoInfo.DownloadUrl" /> property and sets it
+        ///     to the decrypted URL. Use this method, if you have decryptSignature in the
+        ///     <see
+        ///         cref="GetDownloadUrls" />
+        ///     method set to false.
+        /// </summary>
+        /// <param name="videoInfo">The video info which's downlaod URL should be decrypted.</param>
+        /// <exception cref="YoutubeParseException">
+        ///     There was an error while deciphering the signature.
+        /// </exception>
+        public static async Task DecryptDownloadUrlAsync(VideoInfo videoInfo) {
+            var queries = HttpHelper.ParseQueryString(videoInfo.DownloadUrl);
+
+            if (queries.ContainsKey(SignatureQuery)) {
+                var encryptedSignature = queries[SignatureQuery];
+
+                string decrypted;
+
+                try {
+                    decrypted = await GetDecipheredSignatureAsync(videoInfo, videoInfo.HtmlPlayerVersion, encryptedSignature);
+                } catch (Exception ex) {
+                    throw new YoutubeParseException("Could not decipher signature", ex);
+                }
+
+                videoInfo.DownloadUrl = HttpHelper.ReplaceQueryStringParameter(videoInfo.DownloadUrl, SignatureQuery, decrypted);
+                videoInfo.RequiresDecryption = false;
+            }
+        }
+
 
 
         /// <summary>
@@ -88,7 +122,7 @@ namespace YoutubeExtractor {
 
                 var downloadUrls = ExtractDownloadUrls(json);
 
-                IEnumerable<VideoInfo> infos = GetVideoInfos(downloadUrls, videoTitle).ToList();
+                IEnumerable<VideoInfo> infos = GetVideoInfos(downloadUrls, videoTitle, videoUrl).ToList();
 
                 var htmlPlayerVersion = GetHtml5PlayerVersion(json);
 
@@ -148,14 +182,14 @@ namespace YoutubeExtractor {
                 var videoTitle = GetVideoTitle(json);
 
                 var downloadUrls = ExtractDownloadUrls(json);
-                var infos = GetVideoInfos(downloadUrls, videoTitle);
+                var infos = GetVideoInfos(downloadUrls, videoTitle, videoUrl);
                 var htmlPlayerVersion = GetHtml5PlayerVersion(json);
 
                 foreach (var info in infos) {
                     info.HtmlPlayerVersion = htmlPlayerVersion;
 
                     if (decryptSignature && info.RequiresDecryption)
-                        DecryptDownloadUrl(info);
+                        await DecryptDownloadUrlAsync(info);
                 }
 
                 return infos;
@@ -259,13 +293,12 @@ namespace YoutubeExtractor {
             }
         }
 
-        private static string GetDecipheredSignature(string htmlPlayerVersion, string signature) {
-            /*if (signature.Length == CorrectSignatureLength)
-            {
-                return signature;
-            }*/
+        private static string GetDecipheredSignature(VideoInfo videoinfo, string htmlPlayerVersion, string signature) {
+            return Decipherer.DecipherWithVersion(videoinfo, signature, htmlPlayerVersion);
+        }
 
-            return Decipherer.DecipherWithVersion(signature, htmlPlayerVersion);
+        private static async Task<string> GetDecipheredSignatureAsync(VideoInfo videoinfo, string htmlPlayerVersion, string signature) {
+            return await Decipherer.DecipherWithVersionAsync(videoinfo, signature, htmlPlayerVersion);
         }
 
         private static string GetHtml5PlayerVersion(JObject json) {
@@ -287,7 +320,7 @@ namespace YoutubeExtractor {
             return streamMapString;
         }
 
-        private static IEnumerable<VideoInfo> GetVideoInfos(IEnumerable<ExtractionInfo> extractionInfos, string videoTitle) {
+        private static IEnumerable<VideoInfo> GetVideoInfos(IEnumerable<ExtractionInfo> extractionInfos, string videoTitle, string videoUrl) {
             var downLoadInfos = new List<VideoInfo>();
 
             foreach (var extractionInfo in extractionInfos) {
@@ -301,12 +334,16 @@ namespace YoutubeExtractor {
                     info = new VideoInfo(info) {
                         DownloadUrl = extractionInfo.Uri.ToString(),
                         Title = videoTitle,
-                        RequiresDecryption = extractionInfo.RequiresDecryption
+                        RequiresDecryption = extractionInfo.RequiresDecryption,
+                        YoutubeUrl = videoUrl
+
                     };
 
                 else
                     info = new VideoInfo(formatCode) {
-                        DownloadUrl = extractionInfo.Uri.ToString()
+                        DownloadUrl = extractionInfo.Uri.ToString(),
+                        YoutubeUrl = videoUrl
+
                     };
 
                 downLoadInfos.Add(info);
@@ -328,7 +365,17 @@ namespace YoutubeExtractor {
         }
 
         private static JObject LoadJson(string url) {
-            var pageSource = HttpHelper.DownloadString(url);
+            string pageSource;
+            var rpf = new RetryableProcessFailed("LoadUrls") {Tag=url};
+            retry:try {
+                pageSource = HttpHelper.DownloadString(url);
+            } catch (Exception e) {
+                rpf.Defaultize(e);
+                FailedDownload?.Invoke(rpf);
+                if (rpf.ShouldRetry)
+                    goto retry;
+                return null;
+            }
 
             if (IsVideoUnavailable(pageSource))
                 throw new VideoNotAvailableException();
@@ -341,7 +388,17 @@ namespace YoutubeExtractor {
         }
 
         private static async Task<JObject> LoadJsonAsync(string url) {
-            var pageSource = await _httpClient.GetStringAsync(url);
+            string pageSource;
+            var rpf = new RetryableProcessFailed("LoadUrls") {Tag=url};
+            retry:try {
+                pageSource = await _httpClient.DownloadStringTaskAsync(url);
+            } catch (Exception e) {
+                rpf.Defaultize(e);
+                FailedDownload?.Invoke(rpf);
+                if (rpf.ShouldRetry)
+                    goto retry;
+                return null;
+            }
 
             if (IsVideoUnavailable(pageSource))
                 throw new VideoNotAvailableException();
