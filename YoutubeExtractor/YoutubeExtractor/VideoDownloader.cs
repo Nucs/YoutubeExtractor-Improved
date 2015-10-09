@@ -23,7 +23,10 @@ namespace YoutubeExtractor {
         /// <summary>
         ///     Initializes a new instance of the <see cref="VideoDownloader" /> class.
         /// </summary>
-        public VideoDownloader(YoutubeContext context) : base(context) { }
+        public VideoDownloader(YoutubeContext context, bool findBestVideoInfo = false) : base(context) {
+            if (findBestVideoInfo)
+                DownloadUrlResolver.FindHighestVideoQualityDownloadUrl(context);
+        }
 
         /// <summary>
         ///     Occurs when the downlaod progress of the video file has changed.
