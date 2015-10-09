@@ -4,145 +4,138 @@ using `MediaToolkit C# Library` - a wrapper for `ffmpeg C91 Library`.
 
 The AAC audio file extraction from a MP4 file is done the same way as before (using `AudioDownloader`).
 
-#### Notice:
+#### Main Changes:
 - `.NET Framework` has been upgraded to 4.6.
 - `Newtonsoft.JSON` has been upgraded to 7.0.1.
+- Changed the system to a `context-based` extraction, see examples or unit tests.
+
 
 #### Target platforms
     Confirmed to work on a desktop application under Win7.
 
-# Original Readme
+## Example for simplified usages
 
-<a href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=daume%2edennis%40gmail%2ecom&lc=US&item_name=YoutubeExtractor&no_note=0&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_LG%2egif%3aNonHostedGuest">
-  <img src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif" title="Donate via Paypal" />
-</a>
-
-<a href="http://flattr.com/thing/1093085/" target="_blank">
-<img src="http://api.flattr.com/button/flattr-badge-large.png" alt="Flattr this" title="Flattr this" border="0" />
-</a>
-
-## Overview
-YoutubeExtractor is a library for .NET, written in C#, that allows to download videos from YouTube and/or extract their audio track (audio extraction currently only for flash videos).
-
-## Target platforms
-
-- .NET Framework 3.5 and higher
-- Windows Phone 8
-- WinRT
-- Xamarin.Android
-- Xamarin.iOS
-
-Note that Windows Phone 8, WinRT, Xamarin.Android and Xamarin.iOS only support the extraction of the download URLs
-
-## NuGet
-
-[YoutubeExtractor at NuGet](http://nuget.org/packages/YoutubeExtractor)
-
-    Install-Package YoutubeExtractor
-
-## License
-
-YoutubeExtractor has two licenses;
-
-The YouTube URL-extraction code is licensed under the [MIT License](http://opensource.org/licenses/MIT)
-
-The audio extraction code that is originally from [FlvExtract](http://moitah.net/) is licenced under the [GNU General Public License version 2 (GPLv2)](http://opensource.org/licenses/gpl-2.0)
-
-Files that are GPLv2 licensed are explicitly marked with the GPLv2 header at the top of the file. All other files are implicitly MIT licensed.
-
-## Credits
-
-- [FlvExtract](http://moitah.net/) for extracting MP3 and AAC audio tracks out of flash files.
-
-## Example code
-
-**Get the download URLs**
+**Context Initiating**
 
 ```c#
+//Simple initializing
+var link = "https://www.youtube.com/watch?v=Q7ajZiT1Yms";
+var context = new YoutubeContext(link);
 
-// Our test youtube link
-string link = "insert youtube link";
-
-/*
- * Get the available video formats.
- * We'll work with them in the video and audio download examples.
- */
-IEnumerable<VideoInfo> videoInfos = DownloadUrlResolver.GetDownloadUrls(link);
-
+//Defining download directory
+var context = new YoutubeContext(Url) 
+    {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
+//The file name is automatically set by the video's title
+//and can later be accessible from context.AudioPath
 ```
 
-**Download the video**
+---
 
+**Finding highest quality audio and downloading it**
 ```c#
+string url = "https://www.youtube.com/watch?v=Q7ajZiT1Yms";
+//init a simple context to temp dir.
+var yc = new YoutubeContext(url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
+//Finds the best quality audio and sets it to the context
+DownloadUrlResolver.FindHighestAudioQualityDownloadUrl(yc);
 
-/*
- * Select the first .mp4 video with 360p resolution
- */
-VideoInfo video = videoInfos
-    .First(info => info.VideoType == VideoType.Mp4 && info.Resolution == 360);
-    
-/*
- * If the video has a decrypted signature, decipher it
- */
-if (video.RequiresDecryption)
-{
-    DownloadUrlResolver.DecryptDownloadUrl(video);
-}
-
-/*
- * Create the video downloader.
- * The first argument is the video to download.
- * The second argument is the path to save the video file.
- */
-var videoDownloader = new VideoDownloader(video, Path.Combine("D:/Downloads", video.Title + video.VideoExtension));
-
-// Register the ProgressChanged event and print the current progress
-videoDownloader.DownloadProgressChanged += (sender, args) => Console.WriteLine(args.ProgressPercentage);
-
-/*
- * Execute the video downloader.
- * For GUI applications note, that this method runs synchronously.
- */
-videoDownloader.Execute();
-
+//Init a AudioDownloader with the current context and the rest is magic.
+var ad = new AudioDownloader(yc);
+ad.Execute();
+Console.WriteLine(yc.AudioPath.FullName);
+yc.AudioPath.Delete();
+```
+Async
+```c#
+string url = "https://www.youtube.com/watch?v=Q7ajZiT1Yms";
+var yc = new YoutubeContext(url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
+await DownloadUrlResolver.FindHighestAudioQualityDownloadUrlAsync(yc);
+var ad = new AudioDownloader(yc);
+await ad.ExecuteAsync();
+Console.WriteLine(yc.AudioPath.FullName);
+yc.AudioPath.Delete();
+```
+---
+**Short way to finding highest quality audio and downloading it**
+```c#
+var yc = new YoutubeContext(url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
+var ad = new AudioDownloader(yc, true);
+ad.Execute();
 ```
 
-**Download the audio track**
-
+Async
 ```c#
+var yc = new YoutubeContext(url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
+await DownloadUrlResolver.FindHighestAudioQualityDownloadUrlAsync(yc);
+var ad = new AudioDownloader(yc);
+await ad.ExecuteAsync();
+```
+---
+**Short way to finding highest quality video and downloading it**
+```c#
+var yc = new YoutubeContext(url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
+var vd = new VideoDownloader(yc, true);
+vd.Execute();
+```
+Async
+```c#
+var yc = new YoutubeContext(url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
+await DownloadUrlResolver.FindHighestVideoQualityDownloadUrlAsync(yc);
+var ad = new VideoDownloader(yc);
+await ad.ExecuteAsync();
+```
+---
 
-/*
- * We want the first extractable video with the highest audio quality.
- */
-VideoInfo video = videoInfos
-    .Where(info => info.CanExtractAudio)
-    .OrderByDescending(info => info.AudioBitrate)
-    .First();
-    
-/*
- * If the video has a decrypted signature, decipher it
- */
-if (video.RequiresDecryption)
-{
-    DownloadUrlResolver.DecryptDownloadUrl(video);
+### Stage Changed Handling
+```c#
+context.ProgresStateChanged += (sender, args) => {
+    switch (args.Stage) {
+        case YoutubeStage.ProcessingUrls:
+            ReportProgress(context, "Processing Urls");
+            break;
+        case YoutubeStage.DecipheringUrls:
+            ReportProgress(context, "Deciphering Urls");
+            break;
+        case YoutubeStage.StartingDownload:
+            ReportProgress(context, "Download Starting");
+            break;
+        case YoutubeStage.Downloading:
+            ReportProgress(context, $"{args.Precentage.ToString("F1")}%");
+            break;
+        case YoutubeStage.DownloadFinished:
+            ReportProgress(context, "Download Finished");
+            break;
+        case YoutubeStage.StartingAudioExtraction:
+            ReportProgress(context, "Starting Extracting Audio");
+            break;
+        case YoutubeStage.ExtractingAudio:
+            ReportProgress(context, $"{args.Precentage.ToString("F1")}%");
+            break;
+        case YoutubeStage.FinishedAudioExtraction:
+            ReportProgress(context, "Finished Extracting Audio");
+            break;
+        case YoutubeStage.Completed:
+            ReportProgress(context, "Completed");
+            break;
+        default:
+            throw new ArgumentOutOfRangeException();
+    }
+};
+
+public void ReportProgress(YoutubeContext context, string stage) {
+    //do something with the stage change
 }
+```
 
-/*
- * Create the audio downloader.
- * The first argument is the video where the audio should be extracted from.
- * The second argument is the path to save the audio file.
- */
-var audioDownloader = new AudioDownloader(video, Path.Combine("D:/Downloads", video.Title + video.AudioExtension));
-
-// Register the progress events. We treat the download progress as 85% of the progress and the extraction progress only as 15% of the progress,
-// because the download will take much longer than the audio extraction.
-audioDownloader.DownloadProgressChanged += (sender, args) => Console.WriteLine(args.ProgressPercentage * 0.85);
-audioDownloader.AudioExtractionProgressChanged += (sender, args) => Console.WriteLine(85 + args.ProgressPercentage * 0.15);
-
-/*
- * Execute the audio downloader.
- * For GUI applications note, that this method runs synchronously.
- */
-audioDownloader.Execute();
-
+### Error Handling
+The error handling is managed through event in the context `context.DownloadFailed`.
+It will catch any web request fails, but not null reference exceptions and so on.
+When a web request failed it will pass a `RetryableProcessFailed` object which has a flag to stop retrying based on your decision.
+If not handled at all, it will retry infinitly.
+```c#
+yc.DownloadFailed += (sender, args) => {
+    if (args.NumberOfTries >= 5)
+        args.ShouldRetry = false;
+    Console.WriteLine("args.Subject\n"+args.Exception);
+};
 ```
