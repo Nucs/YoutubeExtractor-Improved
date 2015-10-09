@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Cache;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,6 +30,7 @@ namespace YoutubeExtractor {
         }
 
         public FastWebClient() {
+            this.Encoding = Encoding.UTF8;
             this.Proxy = null;
             //this.CachePolicy = new RequestCachePolicy(RequestCacheLevel.NoCacheNoStore);
         }
