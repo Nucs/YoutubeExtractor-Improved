@@ -190,7 +190,20 @@ namespace YoutubeExtractor {
         internal string HtmlPlayerVersion { get; set; }
 
         public override string ToString() {
-            return string.Format("Full Title: {0}, Type: {1}, Resolution: {2}p", Title + VideoExtension, VideoType, Resolution);
+            return $"Full Title: {Title + VideoExtension}, Type: {VideoType}, Resolution: {Resolution}p";
+        }
+
+        public override int GetHashCode() {
+            return this.YoutubeUrl.GetHashCode() ^ this.Resolution ^ this.Title.GetHashCode() ^ this.AudioBitrate;
+        }
+
+        public override bool Equals(object obj) {
+            var info = obj as VideoInfo;
+            if (info != null) {
+                var vi = info;
+                return vi.GetHashCode() == this.GetHashCode();
+            }
+            return base.Equals(obj);
         }
     }
 }

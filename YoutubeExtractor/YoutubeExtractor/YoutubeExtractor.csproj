@@ -77,7 +77,10 @@
     <Compile Include="VideoInfo.cs" />
     <Compile Include="VideoNotAvailableException.cs" />
     <Compile Include="VideoType.cs" />
+    <Compile Include="YoutubeContext.cs" />
+    <Compile Include="YoutubeDownloadStateChangedArgs.cs" />
     <Compile Include="YoutubeParseException.cs" />
+    <Compile Include="YoutubeUrlTo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

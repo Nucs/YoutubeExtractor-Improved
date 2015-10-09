@@ -41,18 +41,17 @@ namespace YoutubeExtractor {
         /// ///
         /// <param name="bytesToDownload">An optional value to limit the number of bytes to download.</param>
         /// <exception cref="ArgumentNullException"><paramref name="video" /> or <paramref name="savePath" /> is <c>null</c>.</exception>
-        public AudioDownloader(VideoInfo video, string savePath, int? bytesToDownload = null)
-            : base(video, savePath, bytesToDownload) {}
+        public AudioDownloader(VideoInfo video, string savePath) : base(video, savePath) {}
 
         /// <summary>
-        ///     Occurs when the progress of the audio extraction has changed.
+        ///     Initializes a new instance of the <see cref="AudioDownloader" /> class.
         /// </summary>
-        public event EventHandler<ProgressEventArgs> AudioExtractionProgressChanged;
-
-        /// <summary>
-        ///     Occurs when the download progress of the video file has changed.
-        /// </summary>
-        public event EventHandler<ProgressEventArgs> DownloadProgressChanged;
+        /// <param name="context">The current context</param>
+        /// <param name="findBestVideoInfo">Will execute FindBestQualityVideoInfo to the current context</param>
+        public AudioDownloader(YoutubeContext context, bool findBestVideoInfo = false) : base(context) {
+            if (findBestVideoInfo)
+                DownloadUrlResolver.FindHighestQualityDownloadUrl(context);
+        }
 
         /// <summary>
         ///     Downloads the video from YouTube and then extracts the audio track out if it.
@@ -68,40 +67,34 @@ namespace YoutubeExtractor {
             var tempPath = Path.GetTempFileName();
 
             DownloadVideo(tempPath);
-            OnDownloadFinished(EventArgs.Empty);
 
             if (!isCanceled)
                 ExtractAudio(tempPath).Wait();
-
+            context.OnProgresStateChanged(YoutubeStage.Completed);
         }
 
         private void DownloadVideo(string path) {
-            var vd = new VideoDownloader(Video, path, BytesToDownload);
+            context.VideoPath = new FileInfo(path);
+            var vd = new VideoDownloader(context);
 
-            vd.DownloadProgressChanged += (sender, args) => {
-                if (DownloadProgressChanged != null) {
-                    DownloadProgressChanged(this, args);
-
-                    isCanceled = args.Cancel;
-                }
-            };
-            vd.DownloadFailed += (sender, failed) => this.OnDownloadFailed(failed);
             vd.Execute();
         }
 
         private async Task ExtractAudio(string path) {
-            var cache = new FileInfo(SavePath);
-            SavePath = cache.FullName;//to universal string
+            var cache = new FileInfo(context.savableFilename); //target cache
+            var SavePath = context.savableFilename;//to universal string
             for (int i = 1; File.Exists(SavePath); i++) {
                 SavePath = Path.Combine(cache.Directory.FullName, $"{cache.Name.Replace(cache.Extension,"")} ({i}){cache.Extension}");
             }
-                
-            switch (Video.VideoType) {
+            context.AudioPath = new FileInfo(SavePath);
+            switch (context.VideoInfo.VideoType) {
                 case VideoType.Mobile:
                     break;
                 case VideoType.Flash:
                     using (var flvFile = new FlvFile(path, SavePath)) {
-                        flvFile.ConversionProgressChanged += (sender, args) => { AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs(args.ProgressPercentage)); };
+                        flvFile.ConversionProgressChanged += (sender, args) => {
+                            context.OnProgresStateChanged(YoutubeStage.ExtractingAudio, args.ProgressPercentage);
+                        };
 
                         await Task.Run(()=>flvFile.ExtractStreams());
                     }
@@ -114,9 +107,9 @@ namespace YoutubeExtractor {
                         //engine.ConvertProgressEvent += (sender, args) => AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs((args.ProcessedDuration.TotalMilliseconds / args.TotalDuration.TotalMilliseconds) * 100f));
                         //engine.ConversionCompleteEvent += (sender, args) => AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs((args.ProcessedDuration.TotalMilliseconds / args.TotalDuration.TotalMilliseconds) * 100f));
                         //informing on 0% and 100%, btw those conversions are pretty fast, 5 to 10 seconds for a 50MB 1048p video.
-                        AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs(0F));
+                        context.OnProgresStateChanged(YoutubeStage.StartingAudioExtraction);
                         await Task.Run(()=>engine.Convert(@in, @out)); //begin conversion progress. it is executed serially.
-                        AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs(100f)); //invoke completed
+                        context.OnProgresStateChanged(YoutubeStage.FinishedAudioExtraction);
                     }
                     break;
                 case VideoType.WebM:
@@ -145,21 +138,13 @@ namespace YoutubeExtractor {
             
             if (!isCanceled)
                 await ExtractAudio(tempPath);
-            
-            OnDownloadFinished(EventArgs.Empty);
+
+            context.OnProgresStateChanged(YoutubeStage.Completed);
         }
 
         private async Task DownloadVideoAsync(string path) {
-            var vd = new VideoDownloader(Video, path, BytesToDownload);
-
-            vd.DownloadProgressChanged += (sender, args) => {
-                if (DownloadProgressChanged != null) {
-                    DownloadProgressChanged(this, args);
-
-                    isCanceled = args.Cancel;
-                }
-            };
-            vd.DownloadFailed += (sender, failed) => this.OnDownloadFailed(failed);
+            context.VideoPath = new FileInfo(path);
+            var vd = new VideoDownloader(context);
             await vd.ExecuteAsync();
         }
     }

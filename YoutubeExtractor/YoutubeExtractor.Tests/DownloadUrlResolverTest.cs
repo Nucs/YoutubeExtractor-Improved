@@ -8,12 +8,21 @@ namespace YoutubeExtractor.Tests {
     public class DownloadUrlResolverTest {
         [TestMethod]
         public void TryNormalizedUrlForStandardYouTubeUrlShouldReturnSame() {
-            var url = "http://youtube.com/watch?v=12345";
+            var url = "https://www.youtube.com/watch?v=12345";
 
             var normalizedUrl = string.Empty;
 
             Assert.IsTrue(DownloadUrlResolver.TryNormalizeYoutubeUrl(url, out normalizedUrl));
             Assert.AreEqual(url, normalizedUrl);
+        }
+        [TestMethod]
+        public void TryNormalizedUrlForFullScreenUrlShouldReturnSame() {
+            var url = "https://www.youtube.com/v/3X76Z9sl5Zg";
+
+            var normalizedUrl = string.Empty;
+
+            Assert.IsTrue(DownloadUrlResolver.TryNormalizeYoutubeUrl(url, out normalizedUrl));
+            Assert.AreEqual("https://www.youtube.com/watch?v=3X76Z9sl5Zg", normalizedUrl);
         }
 
         [TestMethod]
@@ -22,7 +31,7 @@ namespace YoutubeExtractor.Tests {
 
             var normalizedUrl = string.Empty;
             Assert.IsTrue(DownloadUrlResolver.TryNormalizeYoutubeUrl(url, out normalizedUrl));
-            Assert.AreEqual("http://youtube.com/watch?v=12345", normalizedUrl);
+            Assert.AreEqual("https://www.youtube.com/watch?v=12345", normalizedUrl);
         }
 
         [TestMethod]
@@ -32,7 +41,7 @@ namespace YoutubeExtractor.Tests {
             var normalizedUrl = string.Empty;
             Assert.IsTrue(DownloadUrlResolver.TryNormalizeYoutubeUrl(url, out normalizedUrl));
 
-            Assert.AreEqual("http://youtube.com/watch?v=12345", normalizedUrl);
+            Assert.AreEqual("https://www.youtube.com/watch?v=12345", normalizedUrl);
         }
 
         [TestMethod]

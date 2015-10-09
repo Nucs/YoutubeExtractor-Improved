@@ -17,16 +17,17 @@ namespace YoutubeExtractor {
         /// </summary>
         /// <param name="video">The video to download.</param>
         /// <param name="savePath">The path to save the video.</param>
-        /// <param name="bytesToDownload">An optional value to limit the number of bytes to download.</param>
         /// <exception cref="ArgumentNullException"><paramref name="video" /> or <paramref name="savePath" /> is <c>null</c>.</exception>
-        public VideoDownloader(VideoInfo video, string savePath, int? bytesToDownload = null)
-            : base(video, savePath, bytesToDownload) {
-        }
+        public VideoDownloader(VideoInfo video, string savePath) : base(video, savePath) {}
+
+        /// <summary>
+        ///     Initializes a new instance of the <see cref="VideoDownloader" /> class.
+        /// </summary>
+        public VideoDownloader(YoutubeContext context) : base(context) { }
 
         /// <summary>
         ///     Occurs when the downlaod progress of the video file has changed.
         /// </summary>
-        public event EventHandler<ProgressEventArgs> DownloadProgressChanged;
 
         /// <summary>
         ///     Starts the video download.
@@ -34,26 +35,26 @@ namespace YoutubeExtractor {
         /// <exception cref="IOException">The video file could not be saved.</exception>
         /// <exception cref="WebException">An error occured while downloading the video.</exception>
         public override void Execute() {
-            OnDownloadStarted(EventArgs.Empty);
-
+            context.OnProgresStateChanged(YoutubeStage.StartingDownload);
+            if (context.VideoInfo==null) throw new InvalidOperationException("Cant extract audio when no VideoInfo is selected.");
             HttpWebRequest request;
-            var rpf = new RetryableProcessFailed("Video Downloader") { Tag = Video };
+            var rpf = new RetryableProcessFailed("Video Downloader") { Tag = context };
             retry:try {
-                request = (HttpWebRequest)WebRequest.Create(Video.DownloadUrl);
+                request = (HttpWebRequest)WebRequest.Create(context.VideoInfo.DownloadUrl);
             } catch (Exception e) {
                 rpf.Defaultize(e);
-                OnDownloadFailed(rpf);
+                context.OnDownloadFailed(rpf);
                 if (rpf.ShouldRetry)
                     goto retry;
                 return;
             }
-            if (BytesToDownload.HasValue)
-                request.AddRange(0, BytesToDownload.Value - 1);
+            if (context.BytesToDownload.HasValue)
+                request.AddRange(0, context.BytesToDownload.Value - 1);
 
             // the following code is alternative, you may implement the function after your needs
             using (var response = request.GetResponse())
             using (var source = response.GetResponseStream())
-            using (var target = File.Open(SavePath, FileMode.Create, FileAccess.Write)) {
+            using (var target = File.Open(context.VideoPath?.FullName ?? context.savepath, FileMode.Create, FileAccess.Write)) {
                 var buffer = new byte[1024];
                 var cancel = false;
                 int bytes;
@@ -64,30 +65,27 @@ namespace YoutubeExtractor {
 
                     copiedBytes += bytes;
 
-                    var eventArgs = new ProgressEventArgs((copiedBytes * 1.0 / response.ContentLength) * 100);
+                    var e = context.OnProgresStateChanged(YoutubeStage.Downloading, (copiedBytes * 1.0 / response.ContentLength) * 100f);
 
-                    DownloadProgressChanged?.Invoke(this, eventArgs);
-
-                    if (eventArgs.Cancel)
+                    if (e.Cancel)
                         cancel = true;
-                    
                 }
             }
-
-            OnDownloadFinished(EventArgs.Empty);
+            context.OnProgresStateChanged(YoutubeStage.DownloadFinished);
         }
 
         public async Task ExecuteAsync() {
-            OnDownloadStarted(EventArgs.Empty);
+            context.OnProgresStateChanged(YoutubeStage.StartingDownload);
+            if (context.VideoInfo == null) throw new InvalidOperationException("Cant extract audio when no VideoInfo is selected.");
 
             HttpResponseMessage response;
-            var rpf = new RetryableProcessFailed("Video Downloader") {Tag=Video};
+            var rpf = new RetryableProcessFailed("Video Downloader") {Tag=context};
             retry:try {
-                response = await _httpClient.GetAsync(Video.DownloadUrl);
+                response = await _httpClient.GetAsync(context.VideoInfo.DownloadUrl);
 
             } catch (Exception e) {
                 rpf.Defaultize(e);
-                OnDownloadFailed(rpf);
+                context.OnDownloadFailed(rpf);
                 if (rpf.ShouldRetry)
                     goto retry;
                 return;
@@ -97,7 +95,7 @@ namespace YoutubeExtractor {
                 throw new Exception();
 
             using (var downloadStream = await response.Content.ReadAsStreamAsync())
-            using (var fileStream = File.Open(SavePath, FileMode.Create, FileAccess.Write)) {
+            using (var fileStream = File.Open(context.VideoPath?.FullName ?? context.savepath, FileMode.Create, FileAccess.Write)) {
                 var buffer = new byte[0x4000]; //16KB buffer
                 var cancelRequest = false;
 
@@ -108,13 +106,13 @@ namespace YoutubeExtractor {
                     await fileStream.WriteAsync(buffer, 0, bytes);
                     bytesDownloaded += bytes;
 
-                    var eventArgs = new ProgressEventArgs((bytesDownloaded / downloadStream.Length) * 100);
+                    var e = context.OnProgresStateChanged(YoutubeStage.Downloading, ((bytesDownloaded / downloadStream.Length) * 100));
 
-                    DownloadProgressChanged?.Invoke(this, eventArgs);
-                    if (eventArgs.Cancel)
+                    if (e.Cancel)
                         cancelRequest = true;
                 }
             }
+            context.OnProgresStateChanged(YoutubeStage.DownloadFinished);
         }
     }
 }
