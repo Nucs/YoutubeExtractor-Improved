@@ -6,8 +6,6 @@ using System.Threading.Tasks;
 
 namespace YoutubeExtractor {
     public static class Decipherer {
-        public static event Action<RetryableProcessFailed> FailedDownload;
-
         public static string DecipherWithVersion(VideoInfo vidinfo, string cipher, string cipherVersion) {
             var jsUrl = $"http://s.ytimg.com/yts/jsbin/html5player-{cipherVersion}.js";
 
@@ -17,7 +15,6 @@ namespace YoutubeExtractor {
                 js = HttpHelper.DownloadString(jsUrl);
             } catch (Exception e) {
                 rpf.Defaultize(e);
-                FailedDownload?.Invoke(rpf);
                 if (rpf.ShouldRetry && rpf.NumberOfTries<=10)
                     goto retry;
                 return null;
@@ -90,7 +87,6 @@ namespace YoutubeExtractor {
                 js = await HttpHelper.DownloadStringAsync(jsUrl);
             } catch (Exception e) {
                 rpf.Defaultize(e);
-                FailedDownload?.Invoke(rpf);
                 if (rpf.ShouldRetry && rpf.NumberOfTries<=10)
                     goto retry;
                 return null;

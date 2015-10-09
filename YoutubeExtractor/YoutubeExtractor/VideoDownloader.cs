@@ -51,10 +51,10 @@ namespace YoutubeExtractor {
             if (context.BytesToDownload.HasValue)
                 request.AddRange(0, context.BytesToDownload.Value - 1);
 
-            // the following code is alternative, you may implement the function after your needs
+            context.VideoPath = new FileInfo(context.VideoPath?.FullName ?? context.videoSaveableFilename);
             using (var response = request.GetResponse())
             using (var source = response.GetResponseStream())
-            using (var target = File.Open(context.VideoPath?.FullName ?? context.savepath, FileMode.Create, FileAccess.Write)) {
+            using (var target = File.Open(context.VideoPath.FullName, FileMode.Create, FileAccess.Write)) {
                 var buffer = new byte[1024];
                 var cancel = false;
                 int bytes;
@@ -93,9 +93,10 @@ namespace YoutubeExtractor {
 
             if (!response.IsSuccessStatusCode)
                 throw new Exception();
+            context.VideoPath = new FileInfo(context.VideoPath?.FullName ?? context.videoSaveableFilename);
 
             using (var downloadStream = await response.Content.ReadAsStreamAsync())
-            using (var fileStream = File.Open(context.VideoPath?.FullName ?? context.savepath, FileMode.Create, FileAccess.Write)) {
+            using (var fileStream = File.Open(context.VideoPath.FullName, FileMode.Create, FileAccess.Write)) {
                 var buffer = new byte[0x4000]; //16KB buffer
                 var cancelRequest = false;
 

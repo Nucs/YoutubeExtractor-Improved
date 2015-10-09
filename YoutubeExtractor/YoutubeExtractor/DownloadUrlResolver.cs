@@ -16,8 +16,6 @@ namespace YoutubeExtractor {
         private const string SignatureQuery = "signature";
         private static readonly FastWebClient _httpClient = new FastWebClient();
 
-        public static event Action<RetryableProcessFailed> FailedDownload;
-
         /// <summary>
         ///     Decrypts the signature in the <see cref="VideoInfo.DownloadUrl" /> property and sets it
         ///     to the decrypted URL. Use this method, if you have decryptSignature in the
@@ -123,7 +121,7 @@ namespace YoutubeExtractor {
                     htmlPlayerVersion = GetHtml5PlayerVersion(json);
                 } catch (Exception e) {
                     rpf.Defaultize(e);
-                    FailedDownload?.Invoke(rpf);
+                    context.OnDownloadFailed(rpf);
                     if (rpf.ShouldRetry)
                         goto _redownload;
                     return null;
@@ -194,7 +192,7 @@ namespace YoutubeExtractor {
                     htmlPlayerVersion = GetHtml5PlayerVersion(json);
                 } catch (Exception e) {
                     rpf.Defaultize(e);
-                    FailedDownload?.Invoke(rpf);
+                    context.OnDownloadFailed(rpf);
                     if (rpf.ShouldRetry)
                         goto _redownload;
                     return null;
@@ -218,10 +216,12 @@ namespace YoutubeExtractor {
             return null; // Will never happen, but the compiler requires it
         }
 
+        #region Highest Audio Quality Getters
+
         /// <summary>
         ///     Returns VideoInfo of the highest convertiable url of this youtube video
         /// </summary>
-        public static VideoInfo GetHighestQualityDownloadUrl(string url) {
+        public static VideoInfo GetHighestAudioQualityDownloadUrl(string url) {
             if (url == null || NormalizeYoutubeUrl(url) ==null )
                 throw new ArgumentNullException(nameof(url));
             var urls = DownloadUrlResolver.GetDownloadUrls(new YoutubeContext(url));
@@ -235,7 +235,7 @@ namespace YoutubeExtractor {
         /// <summary>
         ///     Returns VideoInfo of the highest convertiable url of this youtube video
         /// </summary>
-        public static async Task<VideoInfo> GetHighestQualityDownloadUrlAsync(string url) {
+        public static async Task<VideoInfo> GetHighestAudioQualityDownloadUrlAsync(string url) {
             if (url == null || NormalizeYoutubeUrl(url) == null)
                 throw new ArgumentNullException(nameof(url));
             var urls = await DownloadUrlResolver.GetDownloadUrlsAsync(new YoutubeContext(url));
@@ -249,7 +249,7 @@ namespace YoutubeExtractor {
                 /// <summary>
         ///     Returns VideoInfo of the highest convertiable url of this youtube video
         /// </summary>
-        public static void FindHighestQualityDownloadUrl(YoutubeContext context) {
+        public static void FindHighestAudioQualityDownloadUrl(YoutubeContext context) {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
             var urls = DownloadUrlResolver.GetDownloadUrls(context);
@@ -262,7 +262,7 @@ namespace YoutubeExtractor {
         /// <summary>
         ///     Returns VideoInfo of the highest convertiable url of this youtube video
         /// </summary>
-        public static async Task FindHighestQualityDownloadUrlAsync(YoutubeContext context) {
+        public static async Task FindHighestAudioQualityDownloadUrlAsync(YoutubeContext context) {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
             var urls = await DownloadUrlResolver.GetDownloadUrlsAsync(context);
@@ -271,6 +271,68 @@ namespace YoutubeExtractor {
             if (context.VideoInfo?.RequiresDecryption == true)
                 DownloadUrlResolver.DecryptDownloadUrl(context.VideoInfo);
         }
+
+        #endregion
+
+        #region Highest Video Quality Getters
+
+        /// <summary>
+        ///     Returns VideoInfo of the highest convertiable url of this youtube video
+        /// </summary>
+        public static VideoInfo GetHighestVideoQualityDownloadUrl(string url, VideoType type = VideoType.Mp4) {
+            if (url == null || NormalizeYoutubeUrl(url) ==null )
+                throw new ArgumentNullException(nameof(url));
+            var urls = DownloadUrlResolver.GetDownloadUrls(new YoutubeContext(url));
+            var video = urls.Where(vi=>vi.VideoType==type).OrderByDescending(info => info.Resolution).FirstOrDefault();
+
+            if (video?.RequiresDecryption == true)
+                DownloadUrlResolver.DecryptDownloadUrl(video);
+
+            return video;
+        }
+
+        /// <summary>
+        ///     Returns VideoInfo of the highest convertiable url of this youtube video
+        /// </summary>
+        public static async Task<VideoInfo> GetHighestVideoQualityDownloadUrlAsync(string url, VideoType type = VideoType.Mp4) {
+            if (url == null || NormalizeYoutubeUrl(url) == null)
+                throw new ArgumentNullException(nameof(url));
+            var urls = await DownloadUrlResolver.GetDownloadUrlsAsync(new YoutubeContext(url));
+            var video = urls.Where(vi=>vi.VideoType==type).OrderByDescending(info => info.Resolution).FirstOrDefault();
+
+            if (video?.RequiresDecryption == true)
+                DownloadUrlResolver.DecryptDownloadUrl(video);
+            return video;
+        }
+
+                /// <summary>
+        ///     Returns VideoInfo of the highest convertiable url of this youtube video
+        /// </summary>
+        public static void FindHighestVideoQualityDownloadUrl(YoutubeContext context, VideoType type = VideoType.Mp4) {
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+            var urls = DownloadUrlResolver.GetDownloadUrls(context);
+            context.VideoInfo = urls.Where(vi=>vi.VideoType==type).OrderByDescending(info => info.Resolution).FirstOrDefault();
+
+            if (context.VideoInfo?.RequiresDecryption==true)
+                DownloadUrlResolver.DecryptDownloadUrl(context.VideoInfo);
+        }
+
+        /// <summary>
+        ///     Returns VideoInfo of the highest convertiable url of this youtube video
+        /// </summary>
+        public static async Task FindHighestVideoQualityDownloadUrlAsync(YoutubeContext context, VideoType type = VideoType.Mp4) {
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+            var urls = await DownloadUrlResolver.GetDownloadUrlsAsync(context);
+            context.VideoInfo = urls.Where(vi=>vi.VideoType==type).OrderByDescending(info => info.Resolution).FirstOrDefault();
+
+            if (context.VideoInfo?.RequiresDecryption == true)
+                DownloadUrlResolver.DecryptDownloadUrl(context.VideoInfo);
+        }
+
+        #endregion
+
 
 #if PORTABLE
 
@@ -455,7 +517,7 @@ namespace YoutubeExtractor {
                 pageSource = HttpHelper.DownloadString(url);
             } catch (Exception e) {
                 rpf.Defaultize(e);
-                FailedDownload?.Invoke(rpf);
+                //TODO FailedDownload?.Invoke(rpf);
                 if (rpf.ShouldRetry)
                     goto retry;
                 return null;
@@ -478,7 +540,7 @@ namespace YoutubeExtractor {
                 pageSource = await _httpClient.DownloadStringTaskAsync(url);
             } catch (Exception e) {
                 rpf.Defaultize(e);
-                FailedDownload?.Invoke(rpf);
+                //TODO FailedDownload?.Invoke(rpf);
                 if (rpf.ShouldRetry)
                     goto retry;
                 return null;

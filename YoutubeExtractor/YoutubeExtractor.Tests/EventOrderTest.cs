@@ -15,7 +15,7 @@ namespace YoutubeExtractor.Tests {
         [TestMethod]
         public void UrlDownloadingTest() {
             var yc = new YoutubeContext(Url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
-            DownloadUrlResolver.FindHighestQualityDownloadUrl(yc);
+            DownloadUrlResolver.FindHighestAudioQualityDownloadUrl(yc);
 
             var ad = new AudioDownloader(yc);
             try {
@@ -32,8 +32,8 @@ namespace YoutubeExtractor.Tests {
         public void UrlDownloadingFileAlreadyExistsTest() {
             var yc = new YoutubeContext(Url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
             var yc2 = new YoutubeContext(Url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
-            DownloadUrlResolver.FindHighestQualityDownloadUrlAsync(yc).Wait();
-            DownloadUrlResolver.FindHighestQualityDownloadUrlAsync(yc2).Wait();
+            DownloadUrlResolver.FindHighestAudioQualityDownloadUrlAsync(yc).Wait();
+            DownloadUrlResolver.FindHighestAudioQualityDownloadUrlAsync(yc2).Wait();
 
             if (yc.VideoInfo.RequiresDecryption)
                 DownloadUrlResolver.DecryptDownloadUrl(yc.VideoInfo);
@@ -57,11 +57,24 @@ namespace YoutubeExtractor.Tests {
         }
 
         [TestMethod]
-        public void GetHighestQualiyBothAsyncTest() {
+        public void GetHighestAudioQualiyBothAsyncTest() {
             var yc = new YoutubeContext(Url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
-            DownloadUrlResolver.FindHighestQualityDownloadUrlAsync(yc).Wait();
-            var highest2task = DownloadUrlResolver.GetHighestQualityDownloadUrlAsync(Url);
-            var highest = DownloadUrlResolver.GetHighestQualityDownloadUrl(Url);
+            DownloadUrlResolver.FindHighestAudioQualityDownloadUrlAsync(yc).Wait();
+            var highest2task = DownloadUrlResolver.GetHighestAudioQualityDownloadUrlAsync(Url);
+            var highest = DownloadUrlResolver.GetHighestAudioQualityDownloadUrl(Url);
+            var highest2 = highest2task.Result;
+            Assert.AreEqual(yc.VideoInfo, highest);
+            Assert.AreEqual(yc.VideoInfo, highest2);
+            Assert.AreEqual(highest, highest2);
+            Debug.WriteLine(yc.VideoInfo);
+        }
+
+        [TestMethod]
+        public void GetHighestVideoQualiyBothAsyncTest() {
+            var yc = new YoutubeContext("https://www.youtube.com/watch?v=WlozEc6BxsE") {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
+            DownloadUrlResolver.FindHighestVideoQualityDownloadUrlAsync(yc).Wait();
+            var highest2task = DownloadUrlResolver.GetHighestVideoQualityDownloadUrlAsync("https://www.youtube.com/watch?v=WlozEc6BxsE");
+            var highest = DownloadUrlResolver.GetHighestVideoQualityDownloadUrl("https://www.youtube.com/watch?v=WlozEc6BxsE");
             var highest2 = highest2task.Result;
             Assert.AreEqual(yc.VideoInfo, highest);
             Assert.AreEqual(yc.VideoInfo, highest2);
@@ -103,7 +116,7 @@ namespace YoutubeExtractor.Tests {
                 sb.Append($"{{{args.Stage.ToString()}}}");
             };
 
-            DownloadUrlResolver.FindHighestQualityDownloadUrl(yc);
+            DownloadUrlResolver.FindHighestAudioQualityDownloadUrl(yc);
 
             try {
                 ad.Execute();

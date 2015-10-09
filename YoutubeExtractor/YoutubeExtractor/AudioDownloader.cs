@@ -50,7 +50,7 @@ namespace YoutubeExtractor {
         /// <param name="findBestVideoInfo">Will execute FindBestQualityVideoInfo to the current context</param>
         public AudioDownloader(YoutubeContext context, bool findBestVideoInfo = false) : base(context) {
             if (findBestVideoInfo)
-                DownloadUrlResolver.FindHighestQualityDownloadUrl(context);
+                DownloadUrlResolver.FindHighestAudioQualityDownloadUrl(context);
         }
 
         /// <summary>
@@ -81,8 +81,8 @@ namespace YoutubeExtractor {
         }
 
         private async Task ExtractAudio(string path) {
-            var cache = new FileInfo(context.savableFilename); //target cache
-            var SavePath = context.savableFilename;//to universal string
+            var cache = new FileInfo(context.audioSaveableFilename); //target cache
+            var SavePath = context.audioSaveableFilename;//to universal string
             for (int i = 1; File.Exists(SavePath); i++) {
                 SavePath = Path.Combine(cache.Directory.FullName, $"{cache.Name.Replace(cache.Extension,"")} ({i}){cache.Extension}");
             }

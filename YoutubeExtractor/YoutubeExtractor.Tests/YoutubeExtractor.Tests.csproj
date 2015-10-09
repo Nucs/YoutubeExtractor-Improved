@@ -43,6 +43,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DownloadUrlResolverTest.cs" />
+    <Compile Include="YoutubeContextToTests.cs" />
     <Compile Include="YoutubeUrlParserTests.cs" />
     <Compile Include="EventOrderTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

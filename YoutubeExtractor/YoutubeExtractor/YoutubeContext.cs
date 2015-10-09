@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using YoutubeExtractor.Interface;
 
@@ -6,6 +7,8 @@ namespace YoutubeExtractor {
     public class YoutubeContext {
         public event EventHandler<YoutubeDownloadStateChangedArgs> ProgresStateChanged;
         public event EventHandler<RetryableProcessFailed> DownloadFailed;
+
+        public string Thumbnail { get; set; } = "Resources/emptyimg.png";
 
         /// <summary>
         ///     The url to the youtube video.
@@ -58,7 +61,8 @@ namespace YoutubeExtractor {
         /// <summary>
         ///     Save path to extracted audio
         /// </summary>
-        internal string savableFilename => Path.Combine(BaseDirectory?.FullName??"", YoutubeUrlTo.SaveName(Title)+VideoInfo?.AudioExtension);
+        internal string audioSaveableFilename => Path.Combine(BaseDirectory?.FullName??"", YoutubeUrlTo.SaveName(Title)+VideoInfo?.AudioExtension);
+        internal string videoSaveableFilename => Path.Combine(BaseDirectory?.FullName??"", YoutubeUrlTo.SaveName(Title)+VideoInfo?.VideoExtension);
 
         internal YoutubeDownloadStateChangedArgs OnProgresStateChanged(object sender, YoutubeDownloadStateChangedArgs e) {
             ProgresStateChanged?.Invoke(sender, e);
@@ -83,6 +87,24 @@ namespace YoutubeExtractor {
             DownloadFailed?.Invoke(this, e);
         }
 
+        protected bool Equals(YoutubeContext other) {
+            return string.Equals(Url, other.Url) && Equals(VideoInfo, other.VideoInfo);
+        }
 
+        public override bool Equals(object obj) {
+            if (ReferenceEquals(null, obj))
+                return false;
+            if (ReferenceEquals(this, obj))
+                return true;
+            if (obj.GetType() != this.GetType())
+                return false;
+            return Equals((YoutubeContext) obj);
+        }
+
+        public override int GetHashCode() {
+            unchecked {
+                return ((Url?.GetHashCode() ?? 0) * 397) ^ (VideoInfo?.GetHashCode() ?? 0);
+            }
+        }
     }
 }
