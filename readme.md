@@ -1,22 +1,26 @@
-# YoutubeExtractor - MP4 Audio Extraction Support
-This fork adds support for converting MP4 to AAC file 
-using `MediaToolkit C# Library` - a wrapper for `ffmpeg C91 Library`.
+# YoutubeExtractor-Improved
+This fork adds many features, support for converting MP4 to AAC file, A more managed way to monitor the extraction process and a context based logic.
+
 
 The AAC audio file extraction from a MP4 file is done the same way as before (using `AudioDownloader`).
 
-#### Main Changes:
+#### Main Changes / Features:
 - `.NET Framework` has been upgraded to 4.6.
 - `Newtonsoft.JSON` has been upgraded to 7.0.1.
-- Changed the system to a `context-based` extraction, see examples or unit tests.
-
+- Changed the entire login to a `context-based` logic.
+ old code from previos library is invalid and unusable. see examples or unit tests for usage.
+- MP4 Audio extraction - exports using ffmpeg library to .aac format.
 
 #### Target platforms
     Confirmed to work on a desktop application under Win7.
 
+#### External Libraries
+- `MediaToolkit C# Library` - a wrapper for `ffmpeg C91 Library`.
+- `Newtonsoft.JSON`
+
 ## Example for simplified usages
 
 **Context Initiating**
-
 ```c#
 //Simple initializing
 var link = "https://www.youtube.com/watch?v=Q7ajZiT1Yms";
@@ -59,13 +63,15 @@ yc.AudioPath.Delete();
 **Short way to finding highest quality audio and downloading it**
 ```c#
 var yc = new YoutubeContext(url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
-var ad = new AudioDownloader(yc, true);
+var ad = new AudioDownloader(yc, true); //true for auto-find highest quality into `yc`
 ad.Execute();
 ```
 
 Async
 ```c#
 var yc = new YoutubeContext(url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
+//cant use auto-find for highest quality since it is ran serially
+//so this is called instead
 await DownloadUrlResolver.FindHighestAudioQualityDownloadUrlAsync(yc);
 var ad = new AudioDownloader(yc);
 await ad.ExecuteAsync();
