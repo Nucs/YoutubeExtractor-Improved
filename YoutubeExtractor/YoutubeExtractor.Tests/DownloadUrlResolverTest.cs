@@ -15,6 +15,7 @@ namespace YoutubeExtractor.Tests {
             Assert.IsTrue(DownloadUrlResolver.TryNormalizeYoutubeUrl(url, out normalizedUrl));
             Assert.AreEqual(url, normalizedUrl);
         }
+
         [TestMethod]
         public void TryNormalizedUrlForFullScreenUrlShouldReturnSame() {
             var url = "https://www.youtube.com/v/3X76Z9sl5Zg";

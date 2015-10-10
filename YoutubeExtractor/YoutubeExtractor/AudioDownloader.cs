@@ -32,7 +32,7 @@ namespace YoutubeExtractor {
     /// </summary>
     public class AudioDownloader : Downloader {
         private bool isCanceled;
-
+        public bool DeleteVideoAfterExtract { get; set; } = true;
         /// <summary>
         ///     Initializes a new instance of the <see cref="AudioDownloader" /> class.
         /// </summary>
@@ -67,10 +67,13 @@ namespace YoutubeExtractor {
             var tempPath = Path.GetTempFileName();
 
             DownloadVideo(tempPath);
-
             if (!isCanceled)
                 ExtractAudio(tempPath).Wait();
             context.OnProgresStateChanged(YoutubeStage.Completed);
+            if (DeleteVideoAfterExtract) {
+                context.VideoPath.Delete();
+                context.VideoPath = null;
+            }
         }
 
         private void DownloadVideo(string path) {
@@ -140,12 +143,17 @@ namespace YoutubeExtractor {
                 await ExtractAudio(tempPath);
 
             context.OnProgresStateChanged(YoutubeStage.Completed);
+            if (DeleteVideoAfterExtract) {
+                context.VideoPath.Delete();
+                context.VideoPath = null;
+            }
         }
 
         private async Task DownloadVideoAsync(string path) {
             context.VideoPath = new FileInfo(path);
             var vd = new VideoDownloader(context);
             await vd.ExecuteAsync();
+
         }
     }
 }

@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web;
+using HtmlAgilityPack;
 using Newtonsoft.Json.Linq;
 
 namespace YoutubeExtractor {
@@ -354,6 +357,19 @@ namespace YoutubeExtractor {
         /// </returns>
         public static bool TryNormalizeYoutubeUrl(string url, out string normalizedUrl) {
             url = url.Trim();
+            var pos = url.LastIndexOf("#", StringComparison.InvariantCultureIgnoreCase);
+            if (pos>0)
+                url = url.Substring(0,pos);
+
+             if (url.Contains("youtu.be/") && url.Contains("list=")) {
+                var keys = url.Split(new[] {".be/", "?list=", "#"}, StringSplitOptions.RemoveEmptyEntries);
+                if (keys.Length < 3) {
+                    normalizedUrl = null;
+                    return false;
+                }
+                normalizedUrl = $"https://www.youtube.com/watch?v={keys[1]}";
+                return true;
+            }
 
             url = url.Replace("youtu.be/", "youtube.com/watch?v=");
             url = url.Replace("www.youtube", "youtube");
@@ -388,9 +404,8 @@ namespace YoutubeExtractor {
         ///     <c>url</c>, if the normalization was successful; <c>null</c>, if the URL is invalid.
         /// </returns>
         public static string NormalizeYoutubeUrl(string url) {
-            string n;
-            TryNormalizeYoutubeUrl(url, out n);
-            return n;
+            string @out;
+            return !TryNormalizeYoutubeUrl(url, out @out) ? null : @out;
         }
 
         private static IEnumerable<ExtractionInfo> ExtractDownloadUrls(JObject json) {
@@ -560,6 +575,131 @@ namespace YoutubeExtractor {
             throw new YoutubeParseException("Could not parse the Youtube page for URL " + videoUrl + "\n" +
                                             "This may be due to a change of the Youtube page structure.\n" +
                                             "Please report this bug at www.github.com/flagbug/YoutubeExtractor/issues", innerException);
+        }
+
+        public static List<string> ExtractPlaylist(string url) {
+            url = NormalizeYoutubePlaylistUrl(url);
+            if (string.IsNullOrEmpty(url))
+                throw new ArgumentNullException(nameof(url));
+
+            string pageSource;
+            var rpf = new RetryableProcessFailed("LoadUrls") {Tag=url};
+            retry:try {
+                pageSource = _httpClient.DownloadString(url);
+            } catch (Exception e) {
+                rpf.Defaultize(e);
+                //TODO FailedDownload?.Invoke(rpf);
+                if (rpf.ShouldRetry)
+                    goto retry;
+                return null;
+            }
+
+            var doc = new HtmlDocument();
+            doc.LoadHtml(pageSource);
+            return _extractPlaylistUrls(url, doc);
+        }
+
+        private static List<string> _extractPlaylistUrls(string url, HtmlDocument doc) {
+            if (url.Contains("v=") && url.Contains("index=") && url.Contains("list=")) { //song playing with a side-playlist
+                var nodes = doc.DocumentNode.SelectNodes(@"//a[contains(@href,'watch?v')][contains(@href,'list')][contains(@href,'index')]/@href")
+                    .Select(a => "https://www.youtube.com" + HttpUtility.HtmlDecode(a.Attributes["href"].Value))
+                    .Distinct()
+                    .ToList();
+                return nodes;
+            }
+            else if (url.Contains("/playlist?")) { //a playlist
+                var nodes = doc.DocumentNode.SelectNodes(@"//a[contains(@href,'watch?v')][contains(@href,'list')][contains(@href,'index')]/@href")
+                    .Select(a => "https://www.youtube.com" + HttpUtility.HtmlDecode(a.Attributes["href"].Value))
+                    .Distinct()
+                    .ToList();
+                return nodes;
+            }
+
+            //last attempt
+            return doc.DocumentNode.SelectNodes(@"//a[contains(@href,'watch?v')]/@href")
+            .Select(a => "https://www.youtube.com" + HttpUtility.HtmlDecode(a.Attributes["href"].Value))
+            .Distinct()
+            .ToList();
+        }
+
+        /// <summary>
+        ///     Checks if the url is a playlist that can be extracted.
+        /// </summary>
+        public static bool IsPlaylistUrl(string url) {
+            return url.Contains("list=");
+        }
+
+        /// <summary>
+        ///     Normalizes the given YouTube URL to the format http://youtube.com/watch?v={youtube-id}&list={yotube-list-id}&index={song-index}
+        ///     and returns whether the normalization was successful or not.
+        /// </summary>
+        /// <param name="url">The YouTube URL to normalize.</param>
+        /// <param name="normalizedUrl">The normalized YouTube URL.</param>
+        /// <returns>
+        ///     <c>true</c>, if the normalization was successful; <c>false</c>, if the URL is invalid.
+        /// </returns>
+        public static bool TryNormalizeYoutubePlaylistUrl(string url, out string normalizedUrl) {
+            url = url.Trim();
+            var pos = url.LastIndexOf("#", StringComparison.InvariantCultureIgnoreCase);
+            if (pos > 0)
+                url = url.Substring(0, pos);
+            if (url.Contains("youtu.be/") && url.Contains("list=")) {
+                var keys = url.Split(new[] {".be/", "?list=", "#"}, StringSplitOptions.RemoveEmptyEntries);
+                if (keys.Length < 3) {
+                    normalizedUrl = null;
+                    return false;
+                }
+                var _v = keys[1];
+                var _list = keys[2];
+                normalizedUrl = $"https://www.youtube.com/watch?v={_v}&list={_list}";
+                return true;
+            }
+            //https://youtu.be/hT_nvWreIhg?list=RDebXbLfLACGM
+            url = url.Replace("www.youtube", "youtube");
+
+            if (url.Contains("/v/"))
+                url = "http://youtube.com" + new Uri(url).AbsolutePath.Replace("/v/", "/watch?v=");
+
+            url = url.Replace("/watch#", "/watch?");
+
+            var query = HttpHelper.ParseQueryString(url);
+
+            string v;
+            var vtry = query.TryGetValue("v", out v);
+
+            string list;
+            var listtry = query.TryGetValue("list", out list);
+
+            string index;
+            query.TryGetValue("index", out index);
+
+            if (!vtry && listtry) { //a plalist page.
+                normalizedUrl = $"https://www.youtube.com/playlist?list={list}";
+                return true;
+            }
+
+            if (!vtry || !listtry) { //not playlist or regular video
+                normalizedUrl = null;
+                return false;
+            }
+
+            normalizedUrl = $"https://www.youtube.com/watch?v={v}&list={list}"+(string.IsNullOrEmpty(index) ? "" : $"&index={index}");
+
+            return true;
+        }
+
+
+        /// <summary>
+        ///     Normalizes the given YouTube URL to the format http://youtube.com/watch?v={youtube-id}&list={yotube-list-id}&index={song-index}
+        ///     and returns the normalized string if was successful. otherwise null.
+        /// </summary>
+        /// <param name="url">The YouTube URL to normalize.</param>
+        /// <returns>
+        ///     <c>string</c>, if the normalization was successful; <c>null</c>, if the URL is invalid.
+        /// </returns>
+        public static string NormalizeYoutubePlaylistUrl(string url) {
+            string @out;
+            return !TryNormalizeYoutubePlaylistUrl(url,out @out) ? null : @out;
         }
 
         private class ExtractionInfo {
