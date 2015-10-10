@@ -84,7 +84,7 @@ namespace YoutubeExtractor.Tests {
 
         [TestMethod]
         public void EventListeningTest() {
-            var yc = new YoutubeContext(Url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
+            var yc = new YoutubeContext(Url, true) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
             var ad = new AudioDownloader(yc);
 
             var sb = new StringBuilder();
@@ -120,6 +120,7 @@ namespace YoutubeExtractor.Tests {
 
             try {
                 ad.Execute();
+                yc.WaitForThumbnail();
                 Assert.IsTrue(File.Exists(yc.AudioPath?.FullName ?? "/"));
                 Debug.WriteLine(yc.AudioPath?.FullName ?? "");
             } finally {

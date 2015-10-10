@@ -71,23 +71,23 @@ namespace YoutubeExtractor {
 
         private async Task _findBestQualityThumbnail() {
             //response from ytime varies on the user agent, usually 404 is thrown on invalid, but the default return is checked either way. has unique size of 120x80.
-            var fw = new FastWebClient();
-            foreach (var qurl in qualitypics) {
-                var u = string.Format(qurl, _key);
-                byte[] data;
-                try {
-                    data = await fw.DownloadDataTaskAsync(u);
-                } catch (WebException we) when ((we.Response as HttpWebResponse)?.StatusCode==HttpStatusCode.NotFound) {
-                    continue;
-                }
-                using (var ms = new MemoryStream(data)) 
-                    using (var img = Image.FromStream(ms))
-                        if (img.Size.Width == 120 && img.Width == 80) //Its the small default which makes it invalid
-                            continue;
+            using (var fw = new FastWebClient())
+                foreach (var qurl in qualitypics) {
+                    var u = string.Format(qurl, _key);
+                    byte[] data;
+                    try {
+                        data = await fw.DownloadDataTaskAsync(u);
+                    } catch (WebException we) when ((we.Response as HttpWebResponse)?.StatusCode==HttpStatusCode.NotFound) {
+                        continue;
+                    }
+                    using (var ms = new MemoryStream(data)) 
+                        using (var img = Image.FromStream(ms))
+                            if (img.Size.Width == 120 && img.Width == 80) //Its the small default which makes it invalid
+                                continue;
                 
-                _thumbnail = u;
-                break;
-            }
+                    _thumbnail = u;
+                    break;
+                }
         }
     }
 }
