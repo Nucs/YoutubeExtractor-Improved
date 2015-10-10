@@ -25,6 +25,8 @@
     }
 
     public enum YoutubeStage {
+        Undefined = 0,
+        ThumbnailFound,
         ProcessingUrls,
         DecipheringUrls,
         StartingDownload,

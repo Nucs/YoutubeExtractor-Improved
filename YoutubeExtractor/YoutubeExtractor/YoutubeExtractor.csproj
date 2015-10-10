@@ -48,6 +48,7 @@
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
+    <Reference Include="System.Drawing" />
     <Reference Include="System.Net" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Web" />
@@ -81,11 +82,15 @@
     <Compile Include="YoutubeDownloadStateChangedArgs.cs" />
     <Compile Include="YoutubeParseException.cs" />
     <Compile Include="YoutubeContextTo.cs" />
+    <Compile Include="YoutubeThumbnail.cs" />
     <Compile Include="YoutubeUrlTo.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.YoutubeExtractor.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Resources\default.png" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

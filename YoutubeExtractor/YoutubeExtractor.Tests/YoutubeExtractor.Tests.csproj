@@ -42,6 +42,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="YoutubeThumbnailTests.cs" />
     <Compile Include="DownloadUrlResolverTest.cs" />
     <Compile Include="YoutubeContextToTests.cs" />
     <Compile Include="YoutubeUrlParserTests.cs" />

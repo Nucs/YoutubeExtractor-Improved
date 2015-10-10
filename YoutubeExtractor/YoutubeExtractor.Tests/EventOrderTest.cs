@@ -10,8 +10,8 @@ namespace YoutubeExtractor.Tests {
 
     [TestClass]
     public class EventOrderTest {
-        const string Url = "https://www.youtube.com/watch?v=8SPtkjMUkGk";
-        
+        private const string Url = "https://www.youtube.com/watch?v=8SPtkjMUkGk";
+
         [TestMethod]
         public void UrlDownloadingTest() {
             var yc = new YoutubeContext(Url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
@@ -23,7 +23,7 @@ namespace YoutubeExtractor.Tests {
                 Assert.IsTrue(File.Exists(yc.AudioPath.FullName));
                 Debug.WriteLine(yc.AudioPath.FullName);
             } finally {
-                if (yc!=null && File.Exists(yc.AudioPath.FullName))
+                if (yc != null && File.Exists(yc.AudioPath.FullName))
                     File.Delete(yc.AudioPath.FullName);
             }
         }
@@ -49,7 +49,7 @@ namespace YoutubeExtractor.Tests {
                 Assert.IsTrue(File.Exists(yc2.AudioPath.FullName));
                 Assert.IsTrue(yc.AudioPath.FullName != yc2.AudioPath.FullName);
             } finally {
-                if (ad!=null && File.Exists(yc.AudioPath.FullName))
+                if (ad != null && File.Exists(yc.AudioPath.FullName))
                     File.Delete(yc.AudioPath.FullName);
                 if (ad2 != null && File.Exists(yc2.AudioPath.FullName))
                     File.Delete(yc2.AudioPath.FullName);
@@ -127,12 +127,17 @@ namespace YoutubeExtractor.Tests {
                     File.Delete(yc.AudioPath.FullName);
             }
 
-            var events = Enum.GetValues(typeof(YoutubeStage)).Cast<YoutubeStage>().Where(s=>s!=YoutubeStage.DecipheringUrls && s != YoutubeStage.Downloading && s != YoutubeStage.ExtractingAudio).Select(ys => $"{{{ys}}}").ToArray();
+            var events = Enum.GetValues(typeof(YoutubeStage)).Cast<YoutubeStage>()
+                .Where(s =>
+                    s != YoutubeStage.DecipheringUrls
+                    && s != YoutubeStage.Downloading
+                    && s != YoutubeStage.ExtractingAudio
+                    && s != YoutubeStage.Undefined
+                )
+                .Select(ys => $"{{{ys}}}").ToArray();
             var c = sb.ToString();
-
-            foreach (var @event in events) {
+            foreach (var @event in events)
                 Assert.IsTrue(c.Contains(@event), $"c.Contains(YoutubeStage.{@event})");
-            }
         }
     }
 }

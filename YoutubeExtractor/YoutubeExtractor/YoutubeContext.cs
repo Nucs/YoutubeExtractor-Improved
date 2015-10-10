@@ -5,15 +5,38 @@ using YoutubeExtractor.Interface;
 
 namespace YoutubeExtractor {
     public class YoutubeContext {
+        //unique id for every new context.
+        private Guid _contextid = Guid.NewGuid();
+
+        private string _url;
         public event EventHandler<YoutubeDownloadStateChangedArgs> ProgresStateChanged;
         public event EventHandler<RetryableProcessFailed> DownloadFailed;
 
-        public string Thumbnail { get; set; } = "Resources/emptyimg.png";
+        /// <summary>
+        ///     Must be set as property initializer on the declaration of the context
+        /// </summary>
+        public bool _loadThumbnail { get; }
+
+        /// <summary>
+        ///     Url to the thumbnail of this video, highest quality available.
+        /// </summary>
+        public string Thumbnail => _thumbnailgetter?.SafeThumbnail ?? "Resources/default.png";
+
+        private YoutubeThumbnail _thumbnailgetter { get; set; }
 
         /// <summary>
         ///     The url to the youtube video.
         /// </summary>
-        public string Url { get; set; } 
+        public string Url {
+            get { return _url; }
+            set {
+                if (value.Equals(_url, StringComparison.InvariantCulture))
+                    return;
+                _url = value;
+                if (_loadThumbnail)
+                    _thumbnailgetter = new YoutubeThumbnail(this);
+            }
+        }
 
         /// <summary>
         ///     The chosen video info.
@@ -47,10 +70,20 @@ namespace YoutubeExtractor {
         public string Title => this.VideoInfo?.Title ?? "";
 
         public YoutubeContext() { }
-        
+
         /// <param name="url">The url to the youtube video</param>
-        public YoutubeContext(string url) {
+        /// <param name="loadThumbnail">Determines whether a parallel task should run to fetch the thumbnail url, otherwise it'll never load.</param>
+        public YoutubeContext(string url, bool loadThumbnail=false) {
+            _loadThumbnail = loadThumbnail;
             Url = DownloadUrlResolver.NormalizeYoutubeUrl(url);
+        }
+
+        /// <summary>
+        ///     Waits for the thumbnail getter to finish,
+        ///     If one doesnt exist - simply returns.
+        /// </summary>
+        public void WaitForThumbnail() {
+            var a = _thumbnailgetter?.Thumbnail;
         }
         
         /// <summary>
@@ -88,7 +121,7 @@ namespace YoutubeExtractor {
         }
 
         protected bool Equals(YoutubeContext other) {
-            return string.Equals(Url, other.Url) && Equals(VideoInfo, other.VideoInfo);
+            return _contextid.Equals(other._contextid) && string.Equals(_url, other._url) && Equals(VideoInfo, other.VideoInfo);
         }
 
         public override bool Equals(object obj) {
@@ -103,7 +136,10 @@ namespace YoutubeExtractor {
 
         public override int GetHashCode() {
             unchecked {
-                return ((Url?.GetHashCode() ?? 0) * 397) ^ (VideoInfo?.GetHashCode() ?? 0);
+                var hashCode = _contextid.GetHashCode();
+                hashCode = (hashCode * 397) ^ (_url?.GetHashCode() ?? 0);
+                hashCode = (hashCode * 397) ^ (VideoInfo?.GetHashCode() ?? 0);
+                return hashCode;
             }
         }
     }

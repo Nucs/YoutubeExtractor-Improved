@@ -7,7 +7,7 @@ The AAC audio file extraction from a MP4 file is done the same way as before (us
 #### Main Changes / Features:
 - `.NET Framework` has been upgraded to 4.6.
 - `Newtonsoft.JSON` has been upgraded to 7.0.1.
-- Changed the entire login to a `context-based` logic.
+- Changed the entire logic to a `context-based` logic.
  old code from previos library is invalid and unusable. see examples or unit tests for usage.
 - MP4 Audio extraction - exports using ffmpeg library to .aac format.
 
@@ -91,11 +91,35 @@ var ad = new VideoDownloader(yc);
 await ad.ExecuteAsync();
 ```
 ---
+**Get Thumbnail**
+```c#
+var yc = new YoutubeContext(url) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
+var tn = new YoutubeThumbnail(yc);
+//it will wait for the task that gets the thumbnail to finish.
+
+var thumbnailurl = tn.Thumbnail;
+```
+Integrated version
+```c#
+//true in the context constructor is for initialize a thumbnail getter asap.
+var yc = new YoutubeContext(url, true) {BaseDirectory = new DirectoryInfo(Path.GetTempPath())};
+//If thumbnail getter hasn't finished or context initialized with false,
+//The following will return "Resources/default.png".
+var thumbnailurl = yc.Thumbnail;
+//To wait the getter to finish call:
+yc.WaitForThumbnail();
+//Once thumbnail is found, ProgressStateChanged is raised with YoutubeStage.ThumbnailFound
+var realthumbnail = yc.Thumbnail;
+```
 
 ### Stage Changed Handling
 ```c#
 context.ProgresStateChanged += (sender, args) => {
     switch (args.Stage) {
+        case YoutubeStage.ThumbnailFound:
+            //do something about it, I dare you.
+            //This event is out of sync with others as it is run parallerly
+            break;
         case YoutubeStage.ProcessingUrls:
             ReportProgress(context, "Processing Urls");
             break;
