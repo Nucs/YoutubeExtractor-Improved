@@ -13,6 +13,8 @@ namespace YoutubeExtractor.Interface {
         }
 
         public static string Normalized(string s) {
+            if (DownloadUrlResolver.IsPlaylistUrl(s))
+                return DownloadUrlResolver.NormalizeYoutubePlaylistUrl(s);
             return DownloadUrlResolver.NormalizeYoutubeUrl(s);
         }
     }

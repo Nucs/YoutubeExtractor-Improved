@@ -49,7 +49,14 @@ namespace YoutubeExtractor {
             new VideoInfo(140, VideoType.Mp4, 0, false, AudioType.Aac, 128, AdaptiveType.Audio),
             new VideoInfo(141, VideoType.Mp4, 0, false, AudioType.Aac, 256, AdaptiveType.Audio),
             new VideoInfo(171, VideoType.WebM, 0, false, AudioType.Vorbis, 128, AdaptiveType.Audio),
-            new VideoInfo(172, VideoType.WebM, 0, false, AudioType.Vorbis, 192, AdaptiveType.Audio)
+            new VideoInfo(172, VideoType.WebM, 0, false, AudioType.Vorbis, 192, AdaptiveType.Audio),
+            new VideoInfo(249, VideoType.Unknown, 0, false, AudioType.Opus, 96, AdaptiveType.Audio),
+            new VideoInfo(250, VideoType.Unknown, 0, false, AudioType.Opus, 128, AdaptiveType.Audio),
+            new VideoInfo(251, VideoType.Unknown, 0, false, AudioType.Opus, 192, AdaptiveType.Audio),
+            new VideoInfo(298, VideoType.Mp4, 720, false, AudioType.None, 0, AdaptiveType.Video),
+            new VideoInfo(299, VideoType.Mp4, 1080, false, AudioType.None, 0, AdaptiveType.Video),
+            new VideoInfo(302, VideoType.VP9, 720, false, AudioType.None, 0, AdaptiveType.Video),
+            new VideoInfo(303, VideoType.VP9, 1080, false, AudioType.None, 0, AdaptiveType.Video),
         };
 
         internal VideoInfo(int formatCode)
@@ -92,10 +99,10 @@ namespace YoutubeExtractor {
                 switch (AudioType) {
                     case AudioType.Aac:
                         return ".aac";
-
                     case AudioType.Mp3:
                         return ".mp3";
-
+                    case AudioType.Opus:
+                        return ".opus";
                     case AudioType.Vorbis:
                         return ".ogg";
                 }
@@ -115,7 +122,7 @@ namespace YoutubeExtractor {
         /// <value>
         ///     <c>true</c> if the audio of this video can be extracted by YoutubeExtractor; otherwise, <c>false</c>.
         /// </value>
-        public bool CanExtractAudio => VideoType == VideoType.Flash || VideoType == VideoType.Mp4;
+        public bool CanExtractAudio => VideoType == VideoType.Flash || VideoType == VideoType.Mp4 || (VideoType == VideoType.Unknown && AudioBitrate > 0);
 
         /// <summary>
         ///     Gets the download URL.
@@ -168,9 +175,11 @@ namespace YoutubeExtractor {
 
                     case VideoType.Flash:
                         return ".flv";
-
+                    case VideoType.VP8:
+                    case VideoType.VP9:
                     case VideoType.WebM:
                         return ".webm";
+                        
                 }
 
                 return null;
@@ -190,7 +199,7 @@ namespace YoutubeExtractor {
         internal string HtmlPlayerVersion { get; set; }
 
         public override string ToString() {
-            return $"Full Title: {Title + VideoExtension}, Type: {VideoType}, Resolution: {Resolution}p";
+            return $"Full Title: {Title + VideoExtension}, Type: {VideoType}, Format: {FormatCode}, Resolution: {Resolution}p";
         }
 
         public override int GetHashCode() {

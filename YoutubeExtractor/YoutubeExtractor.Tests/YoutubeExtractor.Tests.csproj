@@ -5,7 +5,7 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{CE76B74C-BD0C-4768-8F8B-78E0FBD46FBC}</ProjectGuid>
-    <OutputType>Library</OutputType>
+    <OutputType>Exe</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>YoutubeExtractor.Tests</RootNamespace>
     <AssemblyName>YoutubeExtractor.Tests</AssemblyName>
@@ -32,10 +32,17 @@
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject />
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="HtmlAgilityPack, Version=1.4.9.0, Culture=neutral, PublicKeyToken=bd319b19eaf3b43a, processorArchitecture=MSIL">
       <HintPath>..\..\..\packages\HtmlAgilityPack.1.4.9\lib\Net45\HtmlAgilityPack.dll</HintPath>
       <Private>True</Private>
+    </Reference>
+    <Reference Include="MediaToolkit, Version=1.0.4.11, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Dlls\MediaToolkit.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.VisualStudio.QualityTools.UnitTestFramework, Version=10.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
     <Reference Include="System" />
@@ -46,7 +53,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Main.cs" />
     <Compile Include="PlaylistExtractionTests.cs" />
+    <Compile Include="SpecificFormatsTests.cs" />
     <Compile Include="YoutubeThumbnailTests.cs" />
     <Compile Include="DownloadUrlResolverTest.cs" />
     <Compile Include="YoutubeContextToTests.cs" />
@@ -58,6 +67,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\..\nlib\nucs.Monitor\nucs.Monitoring.csproj">
+      <Project>{f5b65e01-dc0c-4787-99c2-c615966e236f}</Project>
+      <Name>nucs.Monitoring</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\..\YoutubeExtractor.Interface\YoutubeExtractor.Interface.csproj">
       <Project>{a76f4e39-a2ea-47b2-afcb-ccf135a0fc26}</Project>
       <Name>YoutubeExtractor.Interface</Name>

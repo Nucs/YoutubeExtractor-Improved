@@ -51,6 +51,7 @@ namespace YoutubeExtractor {
                     goto retry;
                 return;
             }
+
             if (context.BytesToDownload.HasValue)
                 request.AddRange(0, context.BytesToDownload.Value - 1);
 

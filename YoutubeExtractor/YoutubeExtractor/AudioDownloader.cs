@@ -32,6 +32,9 @@ namespace YoutubeExtractor {
     /// </summary>
     public class AudioDownloader : Downloader {
         private bool isCanceled;
+        /// <summary>
+        ///     Default true.
+        /// </summary>
         public bool DeleteVideoAfterExtract { get; set; } = true;
         /// <summary>
         ///     Initializes a new instance of the <see cref="AudioDownloader" /> class.
@@ -64,13 +67,13 @@ namespace YoutubeExtractor {
         /// <exception cref="AudioExtractionException">An error occured during audio extraction.</exception>
         /// <exception cref="WebException">An error occured while downloading the video.</exception>
         public override void Execute() {
-            var tempPath = Path.GetTempFileName();
+            var tempPath = context.VideoPath?.FullName ?? Path.GetTempFileName();
 
             DownloadVideo(tempPath);
             if (!isCanceled)
                 ExtractAudio(tempPath).Wait();
             context.OnProgresStateChanged(YoutubeStage.Completed);
-            if (DeleteVideoAfterExtract) {
+            if (DeleteVideoAfterExtract ) {
                 context.VideoPath.Delete();
                 context.VideoPath = null;
             }
@@ -89,20 +92,24 @@ namespace YoutubeExtractor {
             for (int i = 1; File.Exists(SavePath); i++) {
                 SavePath = Path.Combine(cache.Directory.FullName, $"{cache.Name.Replace(cache.Extension,"")} ({i}){cache.Extension}");
             }
-            context.AudioPath = new FileInfo(SavePath);
+            SavePath = Path.ChangeExtension(SavePath, "aac");
+            context.OnProgresStateChanged(YoutubeStage.StartingAudioExtraction);
             switch (context.VideoInfo.VideoType) {
                 case VideoType.Mobile:
+                    //no one is really going to use this.. but..
+
                     break;
-                case VideoType.Flash:
+                case VideoType.Flash: {
                     using (var flvFile = new FlvFile(path, SavePath)) {
                         flvFile.ConversionProgressChanged += (sender, args) => {
                             context.OnProgresStateChanged(YoutubeStage.ExtractingAudio, args.ProgressPercentage);
                         };
 
-                        await Task.Run(()=>flvFile.ExtractStreams());
+                        await Task.Run(() => flvFile.ExtractStreams());
                     }
                     break;
-                case VideoType.Mp4:
+                }
+                case VideoType.Mp4: {
                     var @in = new MediaFile(path);
                     var @out = new MediaFile(SavePath);
                     using (var engine = new Engine()) {
@@ -110,18 +117,50 @@ namespace YoutubeExtractor {
                         //engine.ConvertProgressEvent += (sender, args) => AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs((args.ProcessedDuration.TotalMilliseconds / args.TotalDuration.TotalMilliseconds) * 100f));
                         //engine.ConversionCompleteEvent += (sender, args) => AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs((args.ProcessedDuration.TotalMilliseconds / args.TotalDuration.TotalMilliseconds) * 100f));
                         //informing on 0% and 100%, btw those conversions are pretty fast, 5 to 10 seconds for a 50MB 1048p video.
-                        context.OnProgresStateChanged(YoutubeStage.StartingAudioExtraction);
-                        await Task.Run(()=>engine.Convert(@in, @out)); //begin conversion progress. it is executed serially.
-                        context.OnProgresStateChanged(YoutubeStage.FinishedAudioExtraction);
+                        await Task.Run(() => engine.Convert(@in, @out)); //begin conversion progress. it is executed serially.
                     }
                     break;
+                }
                 case VideoType.WebM:
                     break;
                 case VideoType.Unknown:
+                    switch (context.VideoInfo?.AudioType ?? AudioType.None) {
+                        case AudioType.Unknown:
+                            break;
+                        case AudioType.Aac:
+                            File.Move(path, SavePath);
+                            break;
+                        case AudioType.Mp3:
+                            SavePath = Path.ChangeExtension(SavePath, "mp3");
+                            File.Move(path, SavePath);
+                            break;
+                        case AudioType.Vorbis: {
+                            var @in = new MediaFile(path);
+                            var @out = new MediaFile(SavePath);
+                            using (var engine = new Engine()) {
+                                engine.Convert(@in, @out);
+                            }
+                            break;
+                        }
+                        case AudioType.Opus: {
+                            var @in = new MediaFile(path);
+                            var @out = new MediaFile(SavePath);
+                            using (var engine = new Engine()) {
+                                engine.Convert(@in, @out);
+                            }
+                            break;
+                        }
+                        default:
+                            break;
+                    }
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    SavePath = Path.ChangeExtension(SavePath, cache.Extension.Replace(".",""));
+                    File.Move(path, SavePath);
+                    break;
             }
+            context.OnProgresStateChanged(YoutubeStage.FinishedAudioExtraction);
+            context.AudioPath = new FileInfo(SavePath);
         }
 
         /// <summary>
@@ -135,10 +174,10 @@ namespace YoutubeExtractor {
         /// <exception cref="AudioExtractionException">An error occured during audio extraction.</exception>
         /// <exception cref="WebException">An error occured while downloading the video.</exception>
         public async Task ExecuteAsync() {
-            var tempPath = Path.GetTempFileName();
+            var tempPath = context.VideoPath?.FullName ?? Path.GetTempFileName();
 
             await DownloadVideoAsync(tempPath);
-            
+
             if (!isCanceled)
                 await ExtractAudio(tempPath);
 
@@ -153,7 +192,6 @@ namespace YoutubeExtractor {
             context.VideoPath = new FileInfo(path);
             var vd = new VideoDownloader(context);
             await vd.ExecuteAsync();
-
         }
     }
 }

@@ -53,5 +53,12 @@ namespace YoutubeExtractor.Tests {
             Assert.IsFalse(DownloadUrlResolver.TryNormalizeYoutubeUrl(url, out normalizedUrl));
             Assert.IsNull(normalizedUrl);
         }
+        
+        [TestMethod]
+        public void BestAudioQuality() {
+            var url = "https://www.youtube.com/watch?v=cNw8A5pwbVI";
+            var c = new YoutubeContext(url);
+            DownloadUrlResolver.FindHighestAudioQualityDownloadUrlAsync(c).Wait();
+        }
     }
 }

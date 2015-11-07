@@ -11,7 +11,7 @@ namespace YoutubeExtractor {
     ///     A webclient with customized config to run 200% faster than normal webclient.
     /// </summary>
     public class FastWebClient : WebClient {
-
+        
         public uint Timeout { get; set; } = 10000;
 
         static FastWebClient() {

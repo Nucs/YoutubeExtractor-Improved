@@ -17,6 +17,7 @@ The AAC audio file extraction from a MP4 file is done the same way as before (us
 #### External Libraries
 - `MediaToolkit C# Library` - a wrapper for `ffmpeg C91 Library`.
 - `Newtonsoft.JSON`
+- `HtmlAgilityPack`
 
 ## Example for simplified usages
 

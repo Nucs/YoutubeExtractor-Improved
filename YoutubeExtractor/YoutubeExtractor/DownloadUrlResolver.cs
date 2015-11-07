@@ -17,7 +17,7 @@ namespace YoutubeExtractor {
         private const string RateBypassFlag = "ratebypass";
         private const int CorrectSignatureLength = 81;
         private const string SignatureQuery = "signature";
-        private static readonly FastWebClient _httpClient = new FastWebClient();
+        private static FastWebClient _httpClient => new FastWebClient();
 
         /// <summary>
         ///     Decrypts the signature in the <see cref="VideoInfo.DownloadUrl" /> property and sets it
@@ -109,26 +109,19 @@ namespace YoutubeExtractor {
             context.Url = ytb;
             if (!isYoutubeUrl)
                 throw new ArgumentException("URL is not a valid youtube URL!");
-
+            _retry:
             try {
-                var rpf = new RetryableProcessFailed("ParseHtml5Version") { Tag = context.Url };
+                var rpf = new RetryableProcessFailed("ParseHtml5Version") {Tag = context.Url};
                 _redownload:
                 var json = LoadJson(context.Url);
                 var videoTitle = GetVideoTitle(json);
                 int n = 0;
                 var downloadUrls = ExtractDownloadUrls(json);
                 var infos = GetVideoInfos(downloadUrls, videoTitle, context.Url).ToArray();
-                string htmlPlayerVersion;
 
                 try {
-                    htmlPlayerVersion = GetHtml5PlayerVersion(json);
-                } catch (Exception e) {
-                    rpf.Defaultize(e);
-                    context.OnDownloadFailed(rpf);
-                    if (rpf.ShouldRetry)
-                        goto _redownload;
-                    return null;
-                }
+                    var htmlPlayerVersion = GetHtml5PlayerVersion(json);
+
 
                 foreach (var info in infos) {
                     info.HtmlPlayerVersion = htmlPlayerVersion;
@@ -138,16 +131,47 @@ namespace YoutubeExtractor {
                 }
 
                 return infos;
+                } catch (Exception e) {
+                    rpf.Defaultize(e);
+                    context.OnDownloadFailed(rpf);
+                    Console.WriteLine(e);
+                    if (rpf.ShouldRetry)
+                        goto _redownload;
+                    return null;
+                }
+            } catch (Exception ex) when(ex.Message=="Result cannot be called on a failed Match.") {
+                goto _retry;
             } catch (Exception ex) {
                 if (ex is WebException || ex is VideoNotAvailableException)
                     throw;
 
                 ThrowYoutubeParseException(ex, context.Url);
-            }
+            }  //Message 
 
             return null; // Will never happen, but the compiler requires it
         }
 
+        /// <summary>
+        ///     Gets a list of <see cref="VideoInfo" />s for the specified URL.
+        /// </summary>
+        /// <param name="url">The youtube url</param>
+        /// <param name="decryptSignature">
+        ///     A value indicating whether the video signatures should be decrypted or not. Decrypting
+        ///     consists of a HTTP request for each <see cref="VideoInfo" />, so you may want to set
+        ///     this to false and call <see cref="DecryptDownloadUrl" /> on your selected
+        ///     <see
+        ///         cref="VideoInfo" />
+        ///     later.
+        /// </param>
+        /// <returns>A list of <see cref="VideoInfo" />s that can be used to download the video.</returns>
+        /// <exception cref="VideoNotAvailableException">The video is not available.</exception>
+        /// <exception cref="WebException">
+        ///     An error occurred while downloading the YouTube page html.
+        /// </exception>
+        /// <exception cref="YoutubeParseException">The Youtube page could not be parsed.</exception>
+        public static IEnumerable<VideoInfo> GetDownloadUrls(string url, bool decryptSignature = true) {
+            return GetDownloadUrls(new YoutubeContext(url,false), decryptSignature);
+        }
 
         /// <summary>
         ///     Gets a list of <see cref="VideoInfo" />s for the specified URL.
@@ -220,59 +244,71 @@ namespace YoutubeExtractor {
         }
 
         #region Highest Audio Quality Getters
-
+        private static IEnumerable<VideoInfo> _orderByQuality(this IEnumerable<VideoInfo> infos) {
+            return infos.Where(vid => vid.CanExtractAudio).OrderByDescending(info => info.AudioBitrate).ThenBy(info => info.VideoType).ToArray();
+        }
         /// <summary>
-        ///     Returns VideoInfo of the highest convertiable url of this youtube video
+        ///     Returns VideoInfo of the highest convertiable url of this youtube video based on given context
         /// </summary>
-        public static VideoInfo GetHighestAudioQualityDownloadUrl(string url) {
-            if (url == null || NormalizeYoutubeUrl(url) ==null )
-                throw new ArgumentNullException(nameof(url));
-            var urls = DownloadUrlResolver.GetDownloadUrls(new YoutubeContext(url));
-            var video = urls.Where(vid => vid.CanExtractAudio).OrderByDescending(info => info.AudioBitrate).FirstOrDefault();
+        public static VideoInfo GetHighestAudioQualityDownloadUrl(YoutubeContext context) {
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+            var urls = DownloadUrlResolver.GetDownloadUrls(context)._orderByQuality();
+            var video = urls.FirstOrDefault();
 
             if (video?.RequiresDecryption == true)
                 DownloadUrlResolver.DecryptDownloadUrl(video);
             return video;
+        }
+
+        /// <summary>
+        ///     Returns VideoInfo of the highest convertiable url of this youtube video
+        /// </summary>
+        public static async Task<VideoInfo> GetHighestAudioQualityDownloadUrlAsync(YoutubeContext context) {
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+            var urls =(await DownloadUrlResolver.GetDownloadUrlsAsync(context))._orderByQuality();
+            var video = urls.FirstOrDefault();
+
+            if (video?.RequiresDecryption == true)
+                DownloadUrlResolver.DecryptDownloadUrl(video);
+            return video;
+        }
+
+        /// <summary>
+        ///     Returns VideoInfo of the highest convertiable url of this youtube video based on given url
+        /// </summary>
+        public static VideoInfo GetHighestAudioQualityDownloadUrl(string url) {
+            if (string.IsNullOrEmpty(url))
+                throw new ArgumentNullException(nameof(url));
+            return GetHighestAudioQualityDownloadUrl(new YoutubeContext(url));
         }
 
         /// <summary>
         ///     Returns VideoInfo of the highest convertiable url of this youtube video
         /// </summary>
         public static async Task<VideoInfo> GetHighestAudioQualityDownloadUrlAsync(string url) {
-            if (url == null || NormalizeYoutubeUrl(url) == null)
+            if (string.IsNullOrEmpty(url))
                 throw new ArgumentNullException(nameof(url));
-            var urls = await DownloadUrlResolver.GetDownloadUrlsAsync(new YoutubeContext(url));
-            var video = urls.Where(vid => vid.CanExtractAudio).OrderByDescending(info => info.AudioBitrate).FirstOrDefault();
-
-            if (video?.RequiresDecryption == true)
-                DownloadUrlResolver.DecryptDownloadUrl(video);
-            return video;
-        }
-
-                /// <summary>
-        ///     Returns VideoInfo of the highest convertiable url of this youtube video
-        /// </summary>
-        public static void FindHighestAudioQualityDownloadUrl(YoutubeContext context) {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
-            var urls = DownloadUrlResolver.GetDownloadUrls(context);
-            context.VideoInfo = urls.Where(vid => vid.CanExtractAudio).OrderByDescending(info => info.AudioBitrate).FirstOrDefault();
-
-            if (context.VideoInfo?.RequiresDecryption==true)
-                DownloadUrlResolver.DecryptDownloadUrl(context.VideoInfo);
+            return await GetHighestAudioQualityDownloadUrlAsync(new YoutubeContext(url));
         }
 
         /// <summary>
         ///     Returns VideoInfo of the highest convertiable url of this youtube video
         /// </summary>
-        public static async Task FindHighestAudioQualityDownloadUrlAsync(YoutubeContext context) {
+        public static void FindHighestAudioQualityDownloadUrl(this YoutubeContext context) {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
-            var urls = await DownloadUrlResolver.GetDownloadUrlsAsync(context);
-            context.VideoInfo = urls.Where(vid => vid.CanExtractAudio).OrderByDescending(info => info.AudioBitrate).FirstOrDefault();
+            context.VideoInfo = GetHighestAudioQualityDownloadUrl(context);
+        }
 
-            if (context.VideoInfo?.RequiresDecryption == true)
-                DownloadUrlResolver.DecryptDownloadUrl(context.VideoInfo);
+        /// <summary>
+        ///     Returns VideoInfo of the highest convertiable url of this youtube video
+        /// </summary>
+        public static async Task FindHighestAudioQualityDownloadUrlAsync(this YoutubeContext context) {
+            if (context == null)
+                throw new ArgumentNullException(nameof(context));
+            context.VideoInfo = await GetHighestAudioQualityDownloadUrlAsync(context);
         }
 
         #endregion
@@ -356,6 +392,10 @@ namespace YoutubeExtractor {
         ///     <c>true</c>, if the normalization was successful; <c>false</c>, if the URL is invalid.
         /// </returns>
         public static bool TryNormalizeYoutubeUrl(string url, out string normalizedUrl) {
+            if (string.IsNullOrEmpty(url)) {
+                normalizedUrl = null;
+                return false;
+            }
             url = url.Trim();
             var pos = url.LastIndexOf("#", StringComparison.InvariantCultureIgnoreCase);
             if (pos>0)
@@ -500,12 +540,15 @@ namespace YoutubeExtractor {
 
                     };
 
-                else
+                else {
                     info = new VideoInfo(formatCode) {
                         DownloadUrl = extractionInfo.Uri.ToString(),
                         YoutubeUrl = videoUrl
 
                     };
+                    _httpClient.DownloadFileTaskAsync(extractionInfo.Uri.AbsoluteUri, $"C:/extracted/{itag}.webm");
+
+                }
 
                 downLoadInfos.Add(info);
             }
@@ -577,7 +620,37 @@ namespace YoutubeExtractor {
                                             "Please report this bug at www.github.com/flagbug/YoutubeExtractor/issues", innerException);
         }
 
+        /// <summary>
+        ///     Extracts the playlist from the url, wether its on a playlist page or a side playlist when playing a video.
+        ///     Will return the urls of the songs
+        /// </summary>
         public static List<string> ExtractPlaylist(string url) {
+            url = NormalizeYoutubePlaylistUrl(url);
+            if (string.IsNullOrEmpty(url) || !IsPlaylistUrl(url))
+                throw new ArgumentNullException(nameof(url));
+
+            string pageSource;
+            var rpf = new RetryableProcessFailed("LoadUrls") {Tag=url};
+            retry:try {
+                pageSource = _httpClient.DownloadString(url);
+            } catch (Exception e) {
+                rpf.Defaultize(e);
+                //TODO FailedDownload?.Invoke(rpf);
+                if (rpf.ShouldRetry)
+                    goto retry;
+                return null;
+            }
+
+            var doc = new HtmlDocument();
+            doc.LoadHtml(pageSource);
+            return _extractPlaylistUrls(url, doc);
+        }
+
+        /// <summary>
+        ///     Extracts the playlist from the url, wether its on a playlist page or a side playlist when playing a video.
+        ///     Will return the urls of the songs
+        /// </summary>
+        public async static Task<List<string>> ExtractPlaylistAsync(string url) {
             url = NormalizeYoutubePlaylistUrl(url);
             if (string.IsNullOrEmpty(url))
                 throw new ArgumentNullException(nameof(url));
@@ -585,7 +658,7 @@ namespace YoutubeExtractor {
             string pageSource;
             var rpf = new RetryableProcessFailed("LoadUrls") {Tag=url};
             retry:try {
-                pageSource = _httpClient.DownloadString(url);
+                pageSource = await _httpClient.DownloadStringTaskAsync(url);
             } catch (Exception e) {
                 rpf.Defaultize(e);
                 //TODO FailedDownload?.Invoke(rpf);

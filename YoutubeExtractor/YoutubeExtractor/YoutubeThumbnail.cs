@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using System.Web;
@@ -8,6 +9,7 @@ using System.Web;
 namespace YoutubeExtractor {
     /// <summary>
     ///     Handles logic for retrieving highest quality thumbnail picture for the given youtube url.
+    ///     Ordered from highest quality to lowest.
     /// </summary>
     public class YoutubeThumbnail {
         private static readonly string[] qualitypics = {
@@ -17,6 +19,20 @@ namespace YoutubeExtractor {
             "https://i.ytimg.com/vi/{0}/default.jpg",
         };
 
+        /// <summary>
+        ///     Returns all possible thumbnail urls for the youtube key (youtube.com/watch?v={key}).
+        ///     They are not confirmed to exist, for full verification construct new instace of <see cref="YoutubeThumbnail"/>
+        /// </summary>
+        /// <param name="key">The key used to identify a youtube video - youtube.com/watch?v={key}</param>
+        public static string[] GetThumbnailsForKey(string key) {
+            return qualitypics.Select(q => string.Format(q, key)).ToArray();
+        }
+
+        /// <summary>
+        ///     If no valid thumbnail url is found, this is returned.
+        /// </summary>
+        public static string DefaultThumbnail { get; set; } = "Resources/default.png";
+        
         private string _url { get; }
         private string _key { get; }
 
@@ -49,7 +65,7 @@ namespace YoutubeExtractor {
                 if (_thumbnail_task != null &&_thumbnail_task.IsFaulted)
                     throw (Exception) _thumbnail_task.Exception ?? new TaskCanceledException(); //incase..
                 if (_thumbnail_task == null || !_thumbnail_task.IsCompleted)
-                    return "Resources/default.png";
+                    return DefaultThumbnail;
                 return _thumbnail;
             }
         }

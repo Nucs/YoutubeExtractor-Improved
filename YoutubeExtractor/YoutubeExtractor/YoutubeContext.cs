@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Web;
 using YoutubeExtractor.Interface;
 
 namespace YoutubeExtractor {
@@ -20,9 +21,9 @@ namespace YoutubeExtractor {
         /// <summary>
         ///     Url to the thumbnail of this video, highest quality available.
         /// </summary>
-        public string Thumbnail => _thumbnailgetter?.SafeThumbnail ?? "Resources/default.png";
+        public string Thumbnail => _thumbnailgetter?.SafeThumbnail ?? YoutubeThumbnail.DefaultThumbnail;
 
-        private YoutubeThumbnail _thumbnailgetter { get; set; }
+        protected YoutubeThumbnail _thumbnailgetter { get; set; }
 
         /// <summary>
         ///     The url to the youtube video.
@@ -37,6 +38,17 @@ namespace YoutubeExtractor {
                     _thumbnailgetter = new YoutubeThumbnail(this);
             }
         }
+
+        /// <summary>
+        ///     Unique key used to identify the song on youtube. (youtube.com/video?v={key})
+        /// </summary>
+        public string YoutubeKey => HttpUtility.ParseQueryString(new Uri(Url).Query)["v"];
+
+        /// <summary>
+        ///     Marks to any active progress to cancel.
+        ///     If the context is completed, this has no effect.
+        /// </summary>
+        public bool Cancel { get; set; }
 
         /// <summary>
         ///     The chosen video info.
