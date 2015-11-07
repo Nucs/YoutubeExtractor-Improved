@@ -544,10 +544,7 @@ namespace YoutubeExtractor {
                     info = new VideoInfo(formatCode) {
                         DownloadUrl = extractionInfo.Uri.ToString(),
                         YoutubeUrl = videoUrl
-
                     };
-                    _httpClient.DownloadFileTaskAsync(extractionInfo.Uri.AbsoluteUri, $"C:/extracted/{itag}.webm");
-
                 }
 
                 downLoadInfos.Add(info);
