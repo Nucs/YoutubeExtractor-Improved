@@ -53,7 +53,7 @@ namespace YoutubeExtractor {
         /// <param name="findBestVideoInfo">Will execute FindBestQualityVideoInfo to the current context</param>
         public AudioDownloader(YoutubeContext context, bool findBestVideoInfo = false) : base(context) {
             if (findBestVideoInfo)
-                DownloadUrlResolver.FindHighestAudioQualityDownloadUrl(context);
+                context.FindHighestAudioQualityDownloadUrl();
         }
 
         /// <summary>
@@ -87,8 +87,8 @@ namespace YoutubeExtractor {
         }
 
         private async Task ExtractAudio(string path) {
-            var cache = new FileInfo(context.audioSaveableFilename); //target cache
-            var SavePath = context.audioSaveableFilename;//to universal string
+            var cache = new FileInfo(context.AudioPath?.FullName ?? context.audioSaveableFilename); //target cache
+            var SavePath = context.AudioPath?.FullName ?? context.audioSaveableFilename;//to universal string
             for (int i = 1; File.Exists(SavePath); i++) {
                 SavePath = Path.Combine(cache.Directory.FullName, $"{cache.Name.Replace(cache.Extension,"")} ({i}){cache.Extension}");
             }
@@ -96,8 +96,7 @@ namespace YoutubeExtractor {
             context.OnProgresStateChanged(YoutubeStage.StartingAudioExtraction);
             switch (context.VideoInfo.VideoType) {
                 case VideoType.Mobile:
-                    //no one is really going to use this.. but..
-
+                    //no one is really going to use this..
                     break;
                 case VideoType.Flash: {
                     using (var flvFile = new FlvFile(path, SavePath)) {
@@ -117,11 +116,12 @@ namespace YoutubeExtractor {
                         //engine.ConvertProgressEvent += (sender, args) => AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs((args.ProcessedDuration.TotalMilliseconds / args.TotalDuration.TotalMilliseconds) * 100f));
                         //engine.ConversionCompleteEvent += (sender, args) => AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs((args.ProcessedDuration.TotalMilliseconds / args.TotalDuration.TotalMilliseconds) * 100f));
                         //informing on 0% and 100%, btw those conversions are pretty fast, 5 to 10 seconds for a 50MB 1048p video.
-                        await Task.Run(() => engine.Convert(@in, @out)); //begin conversion progress. it is executed serially.
+                        await Task.Run(()=> engine.CustomCommand($"-i \"{@in.Filename.Replace("\\", "/")}\" -vn -acodec copy \"{@out.Filename.Replace("\\", "/")}\"")); //begin conversion progress. it is executed serially.
                     }
                     break;
                 }
                 case VideoType.WebM:
+                    //the mkv files do not contain any audio files.
                     break;
                 case VideoType.Unknown:
                     switch (context.VideoInfo?.AudioType ?? AudioType.None) {
@@ -138,7 +138,7 @@ namespace YoutubeExtractor {
                             var @in = new MediaFile(path);
                             var @out = new MediaFile(SavePath);
                             using (var engine = new Engine()) {
-                                engine.Convert(@in, @out);
+                                await Task.Run(() => engine.Convert(@in, @out));
                             }
                             break;
                         }
@@ -146,7 +146,7 @@ namespace YoutubeExtractor {
                             var @in = new MediaFile(path);
                             var @out = new MediaFile(SavePath);
                             using (var engine = new Engine()) {
-                                engine.Convert(@in, @out);
+                                await Task.Run(()=> engine.CustomCommand($"-i {@in.Filename.Replace("\\","/")} -c:a libvo_aacenc -b:a 192k  {@out.Filename.Replace("\\","/")}"));
                             }
                             break;
                         }

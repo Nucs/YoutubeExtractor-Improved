@@ -16,7 +16,7 @@ namespace YoutubeExtractor.Interface {
                 throw new ArgumentException(nameof(context.Url));
             
             if (context.VideoInfo == null)
-                DownloadUrlResolver.FindHighestAudioQualityDownloadUrl(context);
+                context.FindHighestAudioQualityDownloadUrl();
             
             var ad = new AudioDownloader(context);
             ad.Execute();
@@ -32,7 +32,7 @@ namespace YoutubeExtractor.Interface {
                 throw new ArgumentException(nameof(context.Url));
             
             if (context.VideoInfo == null)
-                DownloadUrlResolver.FindHighestVideoQualityDownloadUrl(context, customtype);
+                context.FindHighestVideoQualityDownloadUrl(customtype);
             
             var vd = new VideoDownloader(context);
             vd.Execute();
@@ -52,7 +52,7 @@ namespace YoutubeExtractor.Interface {
                 throw new ArgumentException(nameof(context.Url));
             
             if (context.VideoInfo == null)
-                await DownloadUrlResolver.FindHighestAudioQualityDownloadUrlAsync(context);
+                await context.FindHighestAudioQualityDownloadUrlAsync();
 
             var ad = new AudioDownloader(context);
             await ad.ExecuteAsync();
@@ -68,7 +68,7 @@ namespace YoutubeExtractor.Interface {
                 throw new ArgumentException(nameof(context.Url));
             
             if (context.VideoInfo == null)
-                await DownloadUrlResolver.FindHighestVideoQualityDownloadUrlAsync(context, customtype);
+                await context.FindHighestVideoQualityDownloadUrlAsync(customtype);
             
             var vd = new VideoDownloader(context);
             await vd.ExecuteAsync();

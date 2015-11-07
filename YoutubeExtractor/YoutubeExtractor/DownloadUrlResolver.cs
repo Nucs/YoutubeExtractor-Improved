@@ -253,6 +253,8 @@ namespace YoutubeExtractor {
         public static VideoInfo GetHighestAudioQualityDownloadUrl(YoutubeContext context) {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
+            if (string.IsNullOrEmpty(context.Url))
+                throw new ArgumentNullException(nameof(context.Url));
             var urls = DownloadUrlResolver.GetDownloadUrls(context)._orderByQuality();
             var video = urls.FirstOrDefault();
 
@@ -267,6 +269,8 @@ namespace YoutubeExtractor {
         public static async Task<VideoInfo> GetHighestAudioQualityDownloadUrlAsync(YoutubeContext context) {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
+            if (string.IsNullOrEmpty(context.Url))
+                throw new ArgumentNullException(nameof(context.Url));
             var urls =(await DownloadUrlResolver.GetDownloadUrlsAsync(context))._orderByQuality();
             var video = urls.FirstOrDefault();
 
@@ -297,8 +301,6 @@ namespace YoutubeExtractor {
         ///     Returns VideoInfo of the highest convertiable url of this youtube video
         /// </summary>
         public static void FindHighestAudioQualityDownloadUrl(this YoutubeContext context) {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
             context.VideoInfo = GetHighestAudioQualityDownloadUrl(context);
         }
 
@@ -306,8 +308,6 @@ namespace YoutubeExtractor {
         ///     Returns VideoInfo of the highest convertiable url of this youtube video
         /// </summary>
         public static async Task FindHighestAudioQualityDownloadUrlAsync(this YoutubeContext context) {
-            if (context == null)
-                throw new ArgumentNullException(nameof(context));
             context.VideoInfo = await GetHighestAudioQualityDownloadUrlAsync(context);
         }
 
@@ -347,7 +347,7 @@ namespace YoutubeExtractor {
                 /// <summary>
         ///     Returns VideoInfo of the highest convertiable url of this youtube video
         /// </summary>
-        public static void FindHighestVideoQualityDownloadUrl(YoutubeContext context, VideoType type = VideoType.Mp4) {
+        public static void FindHighestVideoQualityDownloadUrl(this YoutubeContext context, VideoType type = VideoType.Mp4) {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
             var urls = DownloadUrlResolver.GetDownloadUrls(context);
@@ -360,7 +360,7 @@ namespace YoutubeExtractor {
         /// <summary>
         ///     Returns VideoInfo of the highest convertiable url of this youtube video
         /// </summary>
-        public static async Task FindHighestVideoQualityDownloadUrlAsync(YoutubeContext context, VideoType type = VideoType.Mp4) {
+        public static async Task FindHighestVideoQualityDownloadUrlAsync(this YoutubeContext context, VideoType type = VideoType.Mp4) {
             if (context == null)
                 throw new ArgumentNullException(nameof(context));
             var urls = await DownloadUrlResolver.GetDownloadUrlsAsync(context);
