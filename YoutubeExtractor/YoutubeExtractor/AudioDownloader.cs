@@ -109,8 +109,8 @@ namespace YoutubeExtractor {
                     break;
                 }
                 case VideoType.Mp4: {
-                    var @in = new MediaFile(path);
-                    var @out = new MediaFile(SavePath);
+                    var @in = new MediaFile(new FileInfo(path).FullName);
+                    var @out = new MediaFile(new FileInfo(SavePath).FullName);
                     using (var engine = new Engine()) {
                         //Desperate attempt to catch the extraction from the MediaToolkit lib but it simply does not pass into those events.
                         //engine.ConvertProgressEvent += (sender, args) => AudioExtractionProgressChanged?.Invoke(this, new ProgressEventArgs((args.ProcessedDuration.TotalMilliseconds / args.TotalDuration.TotalMilliseconds) * 100f));
@@ -135,16 +135,16 @@ namespace YoutubeExtractor {
                             File.Move(path, SavePath);
                             break;
                         case AudioType.Vorbis: {
-                            var @in = new MediaFile(path);
-                            var @out = new MediaFile(SavePath);
+                            var @in = new MediaFile(new FileInfo(path).FullName);
+                            var @out = new MediaFile(new FileInfo(SavePath).FullName);
                             using (var engine = new Engine()) {
                                 await Task.Run(() => engine.Convert(@in, @out));
                             }
                             break;
                         }
                         case AudioType.Opus: {
-                            var @in = new MediaFile(path);
-                            var @out = new MediaFile(SavePath);
+                            var @in = new MediaFile(new FileInfo(path).FullName);
+                            var @out = new MediaFile(new FileInfo(SavePath).FullName);
                             using (var engine = new Engine()) {
                                 await Task.Run(()=> engine.CustomCommand($"-i {@in.Filename.Replace("\\","/")} -c:a libvo_aacenc -b:a 192k  {@out.Filename.Replace("\\","/")}"));
                             }
