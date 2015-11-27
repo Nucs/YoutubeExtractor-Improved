@@ -34,13 +34,11 @@ namespace YoutubeExtractor {
         }
 
 
-        private bool isfirstretry = false;
         /// <summary>
         ///     Reset the values (ShouldRetry) and increments NumberOfRetries
         /// </summary>
         public void Defaultize(Exception newException=null) {
             NumberOfTries++;
-            isfirstretry = true;
             Exception = newException;
             ShouldRetry = true;
         }

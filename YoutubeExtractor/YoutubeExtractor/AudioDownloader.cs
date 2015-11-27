@@ -87,8 +87,8 @@ namespace YoutubeExtractor {
         }
 
         private async Task ExtractAudio(string path) {
-            var cache = new FileInfo(context.AudioPath?.FullName ?? context.audioSaveableFilename); //target cache
-            var SavePath = context.AudioPath?.FullName ?? context.audioSaveableFilename;//to universal string
+            var cache = new FileInfo(context.AudioPath?.FullName ?? context.AudioSaveableFilename); //target cache
+            var SavePath = context.AudioPath?.FullName ?? context.AudioSaveableFilename;//to universal string
             for (int i = 1; File.Exists(SavePath); i++) {
                 SavePath = Path.Combine(cache.Directory.FullName, $"{cache.Name.Replace(cache.Extension,"")} ({i}){cache.Extension}");
             }

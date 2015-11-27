@@ -84,6 +84,7 @@
     <Compile Include="VideoNotAvailableException.cs" />
     <Compile Include="VideoType.cs" />
     <Compile Include="YoutubeContext.cs" />
+    <Compile Include="YoutubeContextFactory.cs" />
     <Compile Include="YoutubeDownloadStateChangedArgs.cs" />
     <Compile Include="YoutubeParseException.cs" />
     <Compile Include="YoutubeContextTo.cs" />

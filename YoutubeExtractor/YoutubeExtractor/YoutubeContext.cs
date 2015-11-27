@@ -106,8 +106,8 @@ namespace YoutubeExtractor {
         /// <summary>
         ///     Save path to extracted audio
         /// </summary>
-        internal string audioSaveableFilename => Path.Combine(BaseDirectory?.FullName??"", YoutubeUrlTo.SaveName(Title)+VideoInfo?.AudioExtension);
-        internal string videoSaveableFilename => Path.Combine(BaseDirectory?.FullName??"", YoutubeUrlTo.SaveName(Title)+VideoInfo?.VideoExtension);
+        public string AudioSaveableFilename => Path.Combine(BaseDirectory?.FullName??"", YoutubeUrlTo.SaveName(Title)+VideoInfo?.AudioExtension);
+        public string VideoSaveableFilename => Path.Combine(BaseDirectory?.FullName??"", YoutubeUrlTo.SaveName(Title)+VideoInfo?.VideoExtension);
 
         internal YoutubeDownloadStateChangedArgs OnProgresStateChanged(object sender, YoutubeDownloadStateChangedArgs e) {
             ProgresStateChanged?.Invoke(sender, e);

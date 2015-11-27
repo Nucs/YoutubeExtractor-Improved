@@ -63,10 +63,12 @@ namespace YoutubeExtractor {
                 functionIdentifier = GetFunctionFromLine(line);
 
                 if ((m = Regex.Match(line, @"\(\w+,(?<index>\d+)\)")).Success && functionIdentifier == idCharSwap)
-                    operations += "w" + m.Groups["index"].Value + " "; //operation is a swap (w)
+                //if ((m = Regex.Match(line, @"\(\w+,.(?<index>\d+)\)")).Success && functionIdentifier == idCharSwap)
+                        operations += "w" + m.Groups["index"].Value + " "; //operation is a swap (w)
 
                 if ((m = Regex.Match(line, @"\(\w+,(?<index>\d+)\)")).Success && functionIdentifier == idSlice)
-                    operations += "s" + m.Groups["index"].Value + " "; //operation is a slice
+                //if ((m = Regex.Match(line, @"\(\w+,.(?<index>\d+)\)")).Success && functionIdentifier == idSlice)
+                        operations += "s" + m.Groups["index"].Value + " "; //operation is a slice
 
                 if (functionIdentifier == idReverse) //No regex required for reverse (reverse method has no parameters)
                     operations += "r "; //operation is a reverse
@@ -78,7 +80,7 @@ namespace YoutubeExtractor {
         }
 
          public static async Task<string> DecipherWithVersionAsync(VideoInfo vidinfo, string cipher, string cipherVersion) {
-            var jsUrl = $"http://s.ytimg.com/yts/jsbin/html5player-{cipherVersion}.js";
+            var jsUrl = $"http://s.ytimg.com/yts/jsbin/player-{cipherVersion}.js";
 
             string js;
             var rpf = new RetryableProcessFailed("LoadUrls") {Tag = vidinfo};
@@ -94,15 +96,14 @@ namespace YoutubeExtractor {
 
             //Find "C" in this: var A = B.sig||C (B.s)
             var functNamePattern = @"\.sig\s*\|\|([a-zA-Z0-9\$]+)\("; //Regex Formed To Find Word or DollarSign
-
             var funcName = Regex.Match(js, functNamePattern).Groups[1].Value;
 
             if (funcName.Contains("$"))
                 funcName = "\\" + funcName; //Due To Dollar Sign Introduction, Need To Escape
 
             var funcBodyPattern = @"(?<brace>{([^{}]| ?(brace))*})"; //Match nested angle braces
-            var funcPattern = string.Format(@"{0}\(\w+\){1}", @funcName, funcBodyPattern); //Escape funcName string
-            var funcBody = Regex.Match(js, funcPattern).Groups["brace"].Value; //Entire sig function
+            var funcPattern = @"var " + @funcName + @"=function\(\w+\)\{.*?\};"; //Escape funcName string
+            var funcBody = Regex.Match(js, funcPattern).Value; //Entire sig function
             var lines = funcBody.Split(';'); //Each line in sig function
 
             string idReverse = "", idSlice = "", idCharSwap = ""; //Hold name for each cipher method
@@ -154,7 +155,6 @@ namespace YoutubeExtractor {
             switch (op[0]) {
                 case 'r':
                     return new string(cipher.ToCharArray().Reverse().ToArray());
-
                 case 'w': {
                     var index = GetOpIndex(op);
                     return SwapFirstChar(cipher, index);

@@ -55,7 +55,7 @@ namespace YoutubeExtractor {
             if (context.BytesToDownload.HasValue)
                 request.AddRange(0, context.BytesToDownload.Value - 1);
 
-            context.VideoPath = new FileInfo(context.VideoPath?.FullName ?? context.videoSaveableFilename);
+            context.VideoPath = new FileInfo(context.VideoPath?.FullName ?? context.VideoSaveableFilename);
             using (var response = request.GetResponse())
             using (var source = response.GetResponseStream())
             using (var target = File.Open(context.VideoPath.FullName, FileMode.Create, FileAccess.Write)) {
@@ -97,7 +97,7 @@ namespace YoutubeExtractor {
 
             if (!response.IsSuccessStatusCode)
                 throw new Exception();
-            context.VideoPath = new FileInfo(context.VideoPath?.FullName ?? context.videoSaveableFilename);
+            context.VideoPath = new FileInfo(context.VideoPath?.FullName ?? context.VideoSaveableFilename);
 
             using (var downloadStream = await response.Content.ReadAsStreamAsync())
             using (var fileStream = File.Open(context.VideoPath.FullName, FileMode.Create, FileAccess.Write)) {
