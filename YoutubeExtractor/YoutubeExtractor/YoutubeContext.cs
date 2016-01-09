@@ -14,6 +14,16 @@ namespace YoutubeExtractor {
         public event EventHandler<RetryableProcessFailed> DownloadFailed;
 
         /// <summary>
+        ///     The current stage that this context is going through.
+        /// </summary>
+        public YoutubeStage Stage => StageArguments?.Stage ?? YoutubeStage.Undefined;
+
+        /// <summary>
+        ///     The current stage arguments that this context is going through.
+        /// </summary>
+        public YoutubeDownloadStateChangedArgs StageArguments { get; private set; }
+
+        /// <summary>
         ///     Must be set as property initializer on the declaration of the context
         /// </summary>
         public bool _loadThumbnail { get; }
@@ -81,11 +91,13 @@ namespace YoutubeExtractor {
         /// </summary>
         public string Title => this.VideoInfo?.Title ?? "";
 
-        public YoutubeContext() { }
+        public YoutubeContext() {
+            this.ProgresStateChanged += (sender, args) => {StageArguments = args;};
+        }
 
         /// <param name="url">The url to the youtube video</param>
         /// <param name="loadThumbnail">Determines whether a parallel task should run to fetch the thumbnail url, otherwise it'll never load.</param>
-        public YoutubeContext(string url, bool loadThumbnail=false) {
+        public YoutubeContext(string url, bool loadThumbnail=false) : this() {
             _loadThumbnail = loadThumbnail;
             Url = DownloadUrlResolver.NormalizeYoutubeUrl(url);
         }

@@ -7,46 +7,45 @@ using System.Threading.Tasks;
 namespace YoutubeExtractor {
     public static class Decipherer {
         public static string DecipherWithVersion(VideoInfo vidinfo, string cipher, string cipherVersion) {
-            var jsUrl = $"http://s.ytimg.com/yts/jsbin/player-{cipherVersion}.js";
+            string jsUrl = $"http://s.ytimg.com/yts/jsbin/player-{cipherVersion}.js";
 
             string js;
             var rpf = new RetryableProcessFailed("LoadUrls") {Tag = vidinfo};
-            retry:try {
+            retry:
+            try {
                 js = HttpHelper.DownloadString(jsUrl);
             } catch (Exception e) {
                 rpf.Defaultize(e);
-                if (rpf.ShouldRetry && rpf.NumberOfTries<=10)
+                if (rpf.ShouldRetry && rpf.NumberOfTries <= 10)
                     goto retry;
                 return null;
             }
 
-
             //Find "C" in this: var A = B.sig||C (B.s)
             var functNamePattern = @"\.sig\s*\|\|([a-zA-Z0-9\$]+)\("; //Regex Formed To Find Word or DollarSign
+
             var funcName = Regex.Match(js, functNamePattern).Groups[1].Value;
 
             if (funcName.Contains("$"))
                 funcName = "\\" + funcName; //Due To Dollar Sign Introduction, Need To Escape
 
-            var funcBodyPattern = @"(?<brace>{([^{}]| ?(brace))*})"; //Match nested angle braces
-            var funcPattern = @"var " + @funcName + @"=function\(\w+\)\{.*?\};"; //Escape funcName string
-            var funcBody = Regex.Match(js, funcPattern).Value; //Entire sig function
+            var funcPattern = @funcName + @"=function\(\w+\)\{.*?\},"; //Escape funcName string
+            var funcBody = Regex.Match(js, funcPattern, RegexOptions.Singleline).Value; //Entire sig function
             var lines = funcBody.Split(';'); //Each line in sig function
 
             string idReverse = "", idSlice = "", idCharSwap = ""; //Hold name for each cipher method
             var functionIdentifier = "";
             var operations = "";
 
-            foreach (var line in lines.Skip(1).Take(lines.Length - 2)) //Matches the funcBody with each cipher method. Only runs till all three are defined.
-            {
+            foreach (var line in lines.Skip(1).Take(lines.Length - 2)) { //Matches the funcBody with each cipher method. Only runs till all three are defined.
                 if (!string.IsNullOrEmpty(idReverse) && !string.IsNullOrEmpty(idSlice) &&
                     !string.IsNullOrEmpty(idCharSwap))
                     break; //Break loop if all three cipher methods are defined
 
                 functionIdentifier = GetFunctionFromLine(line);
-                var reReverse = string.Format(@"{0}:\bfunction\b\(\w+\)", functionIdentifier); //Regex for reverse (one parameter)
-                var reSlice = string.Format(@"{0}:\bfunction\b\([a],b\).(\breturn\b)?.?\w+\.", functionIdentifier); //Regex for slice (return or not)
-                var reSwap = string.Format(@"{0}:\bfunction\b\(\w+\,\w\).\bvar\b.\bc=a\b", functionIdentifier); //Regex for the char swap.
+                var reReverse = $@"{functionIdentifier}:\bfunction\b\(\w+\)"; //Regex for reverse (one parameter)
+                var reSlice = $@"{functionIdentifier}:\bfunction\b\([a],b\).(\breturn\b)?.?\w+\."; //Regex for slice (return or not)
+                var reSwap = $@"{functionIdentifier}:\bfunction\b\(\w+\,\w\).\bvar\b.\bc=a\b"; //Regex for the char swap.
 
                 if (Regex.Match(js, reReverse).Success)
                     idReverse = functionIdentifier; //If def matched the regex for reverse then the current function is a defined as the reverse
@@ -63,12 +62,10 @@ namespace YoutubeExtractor {
                 functionIdentifier = GetFunctionFromLine(line);
 
                 if ((m = Regex.Match(line, @"\(\w+,(?<index>\d+)\)")).Success && functionIdentifier == idCharSwap)
-                //if ((m = Regex.Match(line, @"\(\w+,.(?<index>\d+)\)")).Success && functionIdentifier == idCharSwap)
-                        operations += "w" + m.Groups["index"].Value + " "; //operation is a swap (w)
+                    operations += "w" + m.Groups["index"].Value + " "; //operation is a swap (w)
 
                 if ((m = Regex.Match(line, @"\(\w+,(?<index>\d+)\)")).Success && functionIdentifier == idSlice)
-                //if ((m = Regex.Match(line, @"\(\w+,.(?<index>\d+)\)")).Success && functionIdentifier == idSlice)
-                        operations += "s" + m.Groups["index"].Value + " "; //operation is a slice
+                    operations += "s" + m.Groups["index"].Value + " "; //operation is a slice
 
                 if (functionIdentifier == idReverse) //No regex required for reverse (reverse method has no parameters)
                     operations += "r "; //operation is a reverse
@@ -79,16 +76,17 @@ namespace YoutubeExtractor {
             return DecipherWithOperations(cipher, operations);
         }
 
-         public static async Task<string> DecipherWithVersionAsync(VideoInfo vidinfo, string cipher, string cipherVersion) {
+        public static async Task<string> DecipherWithVersionAsync(VideoInfo vidinfo, string cipher, string cipherVersion) {
             var jsUrl = $"http://s.ytimg.com/yts/jsbin/player-{cipherVersion}.js";
 
             string js;
             var rpf = new RetryableProcessFailed("LoadUrls") {Tag = vidinfo};
-            retry:try {
+            retry:
+            try {
                 js = await HttpHelper.DownloadStringAsync(jsUrl);
             } catch (Exception e) {
                 rpf.Defaultize(e);
-                if (rpf.ShouldRetry && rpf.NumberOfTries<=10)
+                if (rpf.ShouldRetry && rpf.NumberOfTries <= 10)
                     goto retry;
                 return null;
             }
@@ -117,9 +115,9 @@ namespace YoutubeExtractor {
                     break; //Break loop if all three cipher methods are defined
 
                 functionIdentifier = GetFunctionFromLine(line);
-                var reReverse = string.Format(@"{0}:\bfunction\b\(\w+\)", functionIdentifier); //Regex for reverse (one parameter)
-                var reSlice = string.Format(@"{0}:\bfunction\b\([a],b\).(\breturn\b)?.?\w+\.", functionIdentifier); //Regex for slice (return or not)
-                var reSwap = string.Format(@"{0}:\bfunction\b\(\w+\,\w\).\bvar\b.\bc=a\b", functionIdentifier); //Regex for the char swap.
+                var reReverse = $@"{functionIdentifier}:\bfunction\b\(\w+\)"; //Regex for reverse (one parameter)
+                var reSlice = $@"{functionIdentifier}:\bfunction\b\([a],b\).(\breturn\b)?.?\w+\."; //Regex for slice (return or not)
+                var reSwap = $@"{functionIdentifier}:\bfunction\b\(\w+\,\w\).\bvar\b.\bc=a\b"; //Regex for the char swap.
 
                 if (Regex.Match(js, reReverse).Success)
                     idReverse = functionIdentifier; //If def matched the regex for reverse then the current function is a defined as the reverse
