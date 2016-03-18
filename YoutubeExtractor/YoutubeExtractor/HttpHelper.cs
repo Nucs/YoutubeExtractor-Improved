@@ -9,7 +9,7 @@ using System.Web;
 
 namespace YoutubeExtractor {
     internal static class HttpHelper {
-        public static string DownloadString(string url) {
+        public static string DownloadString(string url, uint timeout = 1500) {
 #if PORTABLE
             var request = WebRequest.Create(url);
             request.Method = "GET";
@@ -21,15 +21,15 @@ namespace YoutubeExtractor {
 
             return task.ContinueWith(t => ReadStreamFromResponse(t.Result)).Result;
 #else
-            using (var client = new FastWebClient() {Timeout = 1500}) {
+            using (var client = new FastWebClient() {Timeout = timeout}) {
                 client.Encoding = Encoding.UTF8;
                 return client.DownloadString(url);
             }
 #endif
         }
 
-         public static async Task<string> DownloadStringAsync(string url) {
-            using (var client = new FastWebClient()  {Timeout = 1500}) {
+         public static async Task<string> DownloadStringAsync(string url, uint timeout = 1500) {
+            using (var client = new FastWebClient()  {Timeout = timeout}) {
                 client.Encoding = Encoding.UTF8;
                 return await client.DownloadStringTaskAsync(new Uri(url));
             }

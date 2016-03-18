@@ -11,16 +11,20 @@ namespace YoutubeExtractor {
 
             string js;
             var rpf = new RetryableProcessFailed("LoadUrls") {Tag = vidinfo};
+
+            var timeout = 1500u;
             retry:
             try {
-                js = HttpHelper.DownloadString(jsUrl);
+                js = HttpHelper.DownloadString(jsUrl, timeout);
             } catch (Exception e) {
                 rpf.Defaultize(e);
-                if (rpf.ShouldRetry && rpf.NumberOfTries <= 10)
+                if (rpf.ShouldRetry && rpf.NumberOfTries <= 10) {
+                    timeout += 500;
                     goto retry;
+                }
                 return null;
             }
-
+            
             //Find "C" in this: var A = B.sig||C (B.s)
             var functNamePattern = @"\.sig\s*\|\|([a-zA-Z0-9\$]+)\("; //Regex Formed To Find Word or DollarSign
 
@@ -29,7 +33,7 @@ namespace YoutubeExtractor {
             if (funcName.Contains("$"))
                 funcName = "\\" + funcName; //Due To Dollar Sign Introduction, Need To Escape
 
-            var funcPattern = @funcName + @"=function\(\w+\)\{.*?\},"; //Escape funcName string
+            string funcPattern = @funcName + @"=function\(\w+\)\{.*?\},"; //Escape funcName string
             var funcBody = Regex.Match(js, funcPattern, RegexOptions.Singleline).Value; //Entire sig function
             var lines = funcBody.Split(';'); //Each line in sig function
 
@@ -81,13 +85,17 @@ namespace YoutubeExtractor {
 
             string js;
             var rpf = new RetryableProcessFailed("LoadUrls") {Tag = vidinfo};
+
+            var timeout = 1500u;
             retry:
             try {
-                js = await HttpHelper.DownloadStringAsync(jsUrl);
+                js = await HttpHelper.DownloadStringAsync(jsUrl, timeout);
             } catch (Exception e) {
                 rpf.Defaultize(e);
-                if (rpf.ShouldRetry && rpf.NumberOfTries <= 10)
+                if (rpf.ShouldRetry && rpf.NumberOfTries <= 10) {
+                    timeout += 500;
                     goto retry;
+                }
                 return null;
             }
 

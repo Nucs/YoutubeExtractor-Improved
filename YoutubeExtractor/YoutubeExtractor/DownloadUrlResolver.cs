@@ -485,7 +485,6 @@ namespace YoutubeExtractor {
 
         private static string GetAdaptiveStreamMap(JObject json) {
             JToken streamMap = json["args"]["adaptive_fmts"] ?? json["args"]["url_encoded_fmt_stream_map"];
-
             // bugfix: adaptive_fmts is missing in some videos, use url_encoded_fmt_stream_map instead
 
             return streamMap.ToString();
@@ -561,14 +560,18 @@ namespace YoutubeExtractor {
         private static JObject LoadJson(string url) {
             string pageSource;
             var rpf = new RetryableProcessFailed("LoadUrls") {Tag = url};
+            var timeout = 1500u;
             retry:
             try {
-                pageSource = HttpHelper.DownloadString(url);
+                pageSource = HttpHelper.DownloadString(url, timeout);
             } catch (Exception e) {
                 rpf.Defaultize(e);
                 //TODO FailedDownload?.Invoke(rpf);
-                if (rpf.ShouldRetry)
+                
+                if (rpf.ShouldRetry) {
+                    timeout += 500;
                     goto retry;
+                }
                 return null;
             }
 
